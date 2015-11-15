@@ -40,8 +40,8 @@ object AST {
   }
 
 
-  case class BoundedParam(typeVar: TypeVar, boundClass: ClassType) {
-    override def toString = s"$typeVar extends $boundClass"
+  case class BoundedParam(typeVar: TypeVar, bound: Type) {
+    override def toString = s"$typeVar extends $bound"
   }
 
 
