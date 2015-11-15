@@ -24,20 +24,22 @@ object Types {
   }
 
   def isSubtype(t: Type, u: Type)(ct: ClassTable, d: Δ): Boolean = {
-    if(t == u) true
-    else {
-      val t1 = t match {
-        case TypeVar(tName) =>
-          d(tName)
-        case ClassType(cName, typeArgs) =>
-          val classDef = ct(cName)
-          val subst = classDef.typeParams
-            .map(_.typeVar.name)
-            .zip(typeArgs)
-            .toMap
-          substituteType(classDef.baseClass)(subst)
-      }
-      isSubtype(t1, u)(ct, d)
+    if (t == u) true
+    else t match {
+      case TypeVar(tName) =>
+        isSubtype(d(tName), u)(ct, d)
+
+      case ClassType(cName, typeArgs) if ct.contains(cName) =>
+        val classDef = ct(cName)
+        val subst = classDef.typeParams
+          .map(_.typeVar.name)
+          .zip(typeArgs)
+          .toMap
+        val t1 = substituteType(classDef.baseClass)(subst)
+        isSubtype(t1, u)(ct, d)
+
+      case _ =>
+        false
     }
   }
 
@@ -66,8 +68,12 @@ object Types {
 
   def dcast(c: ClassType, d: ClassType)(ct: ClassTable): Boolean = {
     val classC = ct(c.className)
-    classC.typeParams.map(_.typeVar).toSet == fv(classC.baseClass) &&
-      (classC.baseClass.className == d.className || dcast(classC.baseClass, d)(ct))
+    val typeVarsSet = classC.typeParams.map(_.typeVar).toSet
+    val baseClassFreeVarsSet = fv(classC.baseClass)
+
+    typeVarsSet == baseClassFreeVarsSet &&
+      (classC.baseClass.className == d.className ||
+        dcast(classC.baseClass, d)(ct))
   }
 
   def validOverride(m: VarName, classT: ClassType, ft: MethodType)(ct: ClassTable): Boolean =
@@ -93,7 +99,8 @@ object Types {
 
     case FieldAccess(expr0, fieldName) => for {
       t0 <- exprType(expr0)(ct, g, d)
-      fieldsT0 = fields(bound(t0)(d))(ct)
+      t0Bound = bound(t0)(d)
+      fieldsT0 = fields(t0Bound)(ct)
       field <- fieldsT0.find(_.name == fieldName)
     } yield field.fieldType
 
@@ -103,11 +110,13 @@ object Types {
       if tArgs.forall(isTypeWellFormed(_)(ct, d))
       subst = (mTypeParams.map(_.typeVar.name) zip tArgs).toMap
       if tArgs.zip(mTypeParams.map(_.typeVar)).forall {
-        case (t1, u1) => isSubtype(t1, substituteType(u1)(subst))(ct, d)
+        case (t1, u1) =>
+          isSubtype(t1, substituteType(u1)(subst))(ct, d)
       }
       argTypes <- exprType(args.toList)(ct, g, d)
       if (argTypes zip mParams).forall {
-        case (t1, u1) => isSubtype(t1, substituteType(u1)(subst))(ct, d)
+        case (t1, u1) =>
+          isSubtype(t1, substituteType(u1)(subst))(ct, d)
       }
     } yield substituteType(mResult)(subst)
 
