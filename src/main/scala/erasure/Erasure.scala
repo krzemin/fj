@@ -11,7 +11,7 @@ object Erasure {
     if (c == "Object") Nil
     else {
       val classDef = cm(c)
-      val d = classDef.typeParams.map(e => e.typeVar.name -> e.bound).toMap
+      val d = classDef.typeParams.map(e => e.typeVar.name -> e.boundClass).toMap
       fieldsmax(classDef.baseClass.className)(cm) ++ classDef.fields.map { f =>
         f.name -> eraseType(f.fieldType)(d)
       }
@@ -24,8 +24,8 @@ object Erasure {
         mtypemax(methodName, classDef.baseClass.className)(cm)
       case None =>
         val method = classDef.methods.find(_.name == methodName).head
-        val d = classDef.typeParams.map(e => e.typeVar.name -> e.bound).toMap ++
-          method.typeParams.map(e => e.typeVar.name -> e.bound).toMap
+        val d = classDef.typeParams.map(e => e.typeVar.name -> e.boundClass).toMap ++
+          method.typeParams.map(e => e.typeVar.name -> e.boundClass).toMap
         val argTypes = method.args.map(arg => eraseType(arg.argType)(d)).map(fj.Types.SimpleType)
         val resultType = eraseType(method.resultType)(d)
         fj.Types.MethodType(argTypes, fj.Types.SimpleType(resultType))
@@ -82,7 +82,7 @@ object Erasure {
 
   def eraseMethod(classType: FGJ.ClassType, method: FGJ.Method)(cm: FGJ.ClassTable, d: Δ): FJ.Method = {
     val g: Γ = method.args.map(a => a.name -> a.argType).toMap + ("this" -> classType)
-    val d1 = d ++ method.typeParams.map(e => e.typeVar.name -> e.bound)
+    val d1 = d ++ method.typeParams.map(e => e.typeVar.name -> e.boundClass)
     import fj.Types._
     val MethodType(argTypes, SimpleType(resultType)) = mtypemax(method.name, classType.className)(cm)
     val args = method.args.zip(argTypes).map {
@@ -103,7 +103,7 @@ object Erasure {
   def eraseClass(c: FGJ.Class)(cm: FGJ.ClassTable): FJ.Class = c match {
     case FGJ.Class(className, typeParams, parent, fields, methods) =>
       val ct = FGJ.ClassType(className, typeParams.map(_.typeVar))
-      val d = typeParams.map(e => e.typeVar.name -> e.bound).toMap
+      val d = typeParams.map(e => e.typeVar.name -> e.boundClass).toMap
       val eFields = fields.map(f => fj.AST.Field(f.name, eraseType(f.fieldType)(d)))
       val eMethods = methods.map(eraseMethod(ct, _)(cm, d))
       val eParent = eraseType(parent)(d)

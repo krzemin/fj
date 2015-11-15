@@ -3,12 +3,10 @@ package fgj
 import fgj.AST._
 import fgj.Aux._
 
-import scala.annotation.tailrec
-
 object Types {
 
   type Γ = Map[VarName, Type]
-  type Δ = Map[TypeVarName, Type]
+  type Δ = Map[TypeVarName, ClassType]
 
   case class MethodType(typeParams: List[BoundedParam],
                         argTypes: List[Type],
@@ -20,9 +18,8 @@ object Types {
     }
   }
 
-  @tailrec
   def bound(t: Type)(d: Δ): ClassType = t match {
-    case TypeVar(name) => bound(d(name))(d)
+    case TypeVar(name) => d(name)
     case u: ClassType => u
   }
 
@@ -55,7 +52,7 @@ object Types {
       lazy val isObject = c == "Object" && args.isEmpty
       lazy val isWFClass = {
         val subst = (cm(c).typeParams.map(_.typeVar.name) zip args).toMap
-        val superTypes = cm(c).typeParams.map(_.bound).map(substituteType(_)(subst))
+        val superTypes = cm(c).typeParams.map(_.boundClass).map(substituteType(_)(subst))
         val argsAreSubtypes = args.zip(superTypes).forall {
           case (t1, u1) => isSubtype(t1, u1)(cm, d)
         }
@@ -81,9 +78,9 @@ object Types {
       case Some(MethodType(mTypeParams, mParams, mResult)) =>
         val MethodType(fTypeParams, fParams, fResult) = ft
         val subst = (mTypeParams.map(_.typeVar.name) zip fTypeParams.map(_.typeVar)).toMap
-        val mBounds = mTypeParams.map(_.bound)
-        val fBounds = fTypeParams.map(_.bound)
-        val d = fTypeParams.map(e => e.typeVar.name -> e.bound).toMap
+        val mBounds = mTypeParams.map(_.boundClass)
+        val fBounds = fTypeParams.map(_.boundClass)
+        val d = fTypeParams.map(e => e.typeVar.name -> e.boundClass).toMap
         mBounds.map(substituteType(_)(subst)) == fBounds &&
           mParams.map(substituteType(_)(subst)) == fParams &&
           isSubtype(fResult, substituteType(mResult)(subst))(cm, d)
@@ -155,7 +152,7 @@ object Types {
   def methodTypes(ct: ClassType, methodName: VarName)(cm: ClassTable, g: Γ, d: Δ): Boolean = {
     val method = cm(ct.className).methods.find(_.name == methodName).head
     val d1 = (cm(ct.className).typeParams ++ method.typeParams)
-      .map(e => e.typeVar.name -> e.bound).toMap
+      .map(e => e.typeVar.name -> e.boundClass).toMap
     val g1 = method.args.map(a => a.name -> a.argType).toMap + ("this" -> ct)
     exprType(method.body)(cm, g1, d1) match {
       case None =>
@@ -163,7 +160,7 @@ object Types {
       case Some(s) =>
         val argTypes = method.args.map(_.argType)
         isSubtype(s, method.resultType)(cm, d1) &&
-          (method.resultType :: argTypes ++ method.typeParams.map(_.bound))
+          (method.resultType :: argTypes ++ method.typeParams.map(_.boundClass))
             .forall(isTypeWellFormed(_)(cm, d1)) &&
           validOverride(methodName, cm(ct.className).baseClass,
             MethodType(method.typeParams, argTypes, method.resultType))(cm)
@@ -172,10 +169,10 @@ object Types {
 
   def classTypes(c: TypeName)(cm: ClassTable, g: Γ, d: Δ): Boolean = {
     val classDef = cm(c)
-    val d1 = classDef.typeParams.map(e => e.typeVar.name -> e.bound).toMap
+    val d1 = classDef.typeParams.map(e => e.typeVar.name -> e.boundClass).toMap
     val ct = ClassType(c, classDef.typeParams.map(_.typeVar))
     classDef.methods.forall(m => methodTypes(ct, m.name)(cm, g, d)) &&
-      (classDef.baseClass :: classDef.typeParams.map(_.bound) ++ classDef.fields.map(_.fieldType))
+      (classDef.baseClass :: classDef.typeParams.map(_.boundClass) ++ classDef.fields.map(_.fieldType))
         .forall(isTypeWellFormed(_)(cm, d1))
   }
 
