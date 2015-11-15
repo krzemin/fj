@@ -23,42 +23,39 @@ object Types {
     case u: ClassType => u
   }
 
-  def isSubtype(t: Type, u: Type)(cm: ClassTable, d: Δ): Boolean = {
-    lazy val sRefl: Boolean = t == u
-    lazy val sVar: Boolean = t match {
-      case TypeVar(name) =>
-        isSubtype(d(name), u)(cm, d)
-      case _ =>
-        false
+  def isSubtype(t: Type, u: Type)(ct: ClassTable, d: Δ): Boolean = {
+    if(t == u) true
+    else {
+      val t1 = t match {
+        case TypeVar(tName) =>
+          d(tName)
+        case ClassType(cName, typeArgs) =>
+          val classDef = ct(cName)
+          val subst = classDef.typeParams
+            .map(_.typeVar.name)
+            .zip(typeArgs)
+            .toMap
+          substituteType(classDef.baseClass)(subst)
+      }
+      isSubtype(t1, u)(ct, d)
     }
-    lazy val sClass: Boolean = t match {
-      case ClassType(c, typeArgs) =>
-        val classDef = cm(c)
-        val subst = classDef.typeParams
-          .map(_.typeVar.name)
-          .zip(typeArgs)
-          .toMap
-        u == substituteType(classDef.baseClass)(subst)
-      case _ => false
-    }
-    sRefl || sVar || sClass
   }
 
-  def isTypeWellFormed(t: Type)(cm: ClassTable, d: Δ): Boolean = t match {
+  def isTypeWellFormed(t: Type)(ct: ClassTable, d: Δ): Boolean = t match {
     case TypeVar(x) =>
       d.contains(x)
 
+    case ClassType("Object", args) =>
+      args.isEmpty
+
     case ClassType(c, args) =>
-      lazy val isObject = c == "Object" && args.isEmpty
-      lazy val isWFClass = {
-        val subst = (cm(c).typeParams.map(_.typeVar.name) zip args).toMap
-        val superTypes = cm(c).typeParams.map(_.boundClass).map(substituteType(_)(subst))
-        val argsAreSubtypes = args.zip(superTypes).forall {
-          case (t1, u1) => isSubtype(t1, u1)(cm, d)
-        }
-        args.forall(isTypeWellFormed(_)(cm, d)) && argsAreSubtypes
+      val subst = (ct(c).typeParams.map(_.typeVar.name) zip args).toMap
+      val superTypes = ct(c).typeParams.map(_.boundClass).map(substituteType(_)(subst))
+      val argsAreSubtypes = args.zip(superTypes).forall {
+        case (t1, u1) =>
+          isSubtype(t1, u1)(ct, d)
       }
-      isObject || isWFClass
+      args.forall(isTypeWellFormed(_)(ct, d)) && argsAreSubtypes
   }
 
   def fv(t: Type): Set[TypeVar] = t match {
@@ -67,14 +64,14 @@ object Types {
       args.flatMap(fv).toSet
   }
 
-  def dcast(c: ClassType, d: ClassType)(cm: ClassTable): Boolean = {
-    val classC = cm(c.className)
+  def dcast(c: ClassType, d: ClassType)(ct: ClassTable): Boolean = {
+    val classC = ct(c.className)
     classC.typeParams.map(_.typeVar).toSet == fv(classC.baseClass) &&
-      (classC.baseClass.className == d.className || dcast(classC.baseClass, d)(cm))
+      (classC.baseClass.className == d.className || dcast(classC.baseClass, d)(ct))
   }
 
-  def validOverride(m: VarName, ct: ClassType, ft: MethodType)(cm: ClassTable): Boolean =
-    mtype(m, ct)(cm) match {
+  def validOverride(m: VarName, classT: ClassType, ft: MethodType)(ct: ClassTable): Boolean =
+    mtype(m, classT)(ct) match {
       case Some(MethodType(mTypeParams, mParams, mResult)) =>
         val MethodType(fTypeParams, fParams, fResult) = ft
         val subst = (mTypeParams.map(_.typeVar.name) zip fTypeParams.map(_.typeVar)).toMap
@@ -83,97 +80,101 @@ object Types {
         val d = fTypeParams.map(e => e.typeVar.name -> e.boundClass).toMap
         mBounds.map(substituteType(_)(subst)) == fBounds &&
           mParams.map(substituteType(_)(subst)) == fParams &&
-          isSubtype(fResult, substituteType(mResult)(subst))(cm, d)
+          isSubtype(fResult, substituteType(mResult)(subst))(ct, d)
       case Some(_) =>
         false
       case None =>
         true
     }
 
-  def exprType(e: Expr)(cm: ClassTable, g: Γ, d: Δ): Option[Type] = e match {
+  def exprType(e: Expr)(ct: ClassTable, g: Γ, d: Δ): Option[Type] = e match {
     case Var(x) =>
       g.get(x)
 
     case FieldAccess(expr0, fieldName) => for {
-      t0 <- exprType(expr0)(cm, g, d)
-      fieldsT0 = fields(bound(t0)(d))(cm)
+      t0 <- exprType(expr0)(ct, g, d)
+      fieldsT0 = fields(bound(t0)(d))(ct)
       field <- fieldsT0.find(_.name == fieldName)
     } yield field.fieldType
 
     case Invoke(e0, m, tArgs, args) => for {
-      t0 <- exprType(e0)(cm, g, d)
-      MethodType(mTypeParams, mParams, mResult) <- mtype(m, bound(t0)(d))(cm)
-      if tArgs.forall(isTypeWellFormed(_)(cm, d))
+      t0 <- exprType(e0)(ct, g, d)
+      MethodType(mTypeParams, mParams, mResult) <- mtype(m, bound(t0)(d))(ct)
+      if tArgs.forall(isTypeWellFormed(_)(ct, d))
       subst = (mTypeParams.map(_.typeVar.name) zip tArgs).toMap
       if tArgs.zip(mTypeParams.map(_.typeVar)).forall {
-        case (t1, u1) => isSubtype(t1, substituteType(u1)(subst))(cm, d)
+        case (t1, u1) => isSubtype(t1, substituteType(u1)(subst))(ct, d)
       }
-      argTypes <- exprType(args.toList)(cm, g, d)
+      argTypes <- exprType(args.toList)(ct, g, d)
       if (argTypes zip mParams).forall {
-        case (t1, u1) => isSubtype(t1, substituteType(u1)(subst))(cm, d)
+        case (t1, u1) => isSubtype(t1, substituteType(u1)(subst))(ct, d)
       }
     } yield substituteType(mResult)(subst)
 
-    case New(ct, args) => for {
-      es <- exprType(args.toList)(cm, g, d)
-      fts = fields(ct)(cm).map(_.fieldType)
-      if isTypeWellFormed(ct)(cm, d)
-      if (es zip fts).forall { case (t1, u1) => isSubtype(t1, u1)(cm, d) }
-    } yield ct
+    case New(classT, args) => for {
+      es <- exprType(args.toList)(ct, g, d)
+      fts = fields(classT)(ct).map(_.fieldType)
+      if isTypeWellFormed(classT)(ct, d)
+      if (es zip fts).forall { case (t1, u1) => isSubtype(t1, u1)(ct, d) }
+    } yield classT
 
-    case Cast(ct, e0) => for {
-      t0 <- exprType(e0)(cm, g, d)
+    case Cast(classT, e0) => for {
+      t0 <- exprType(e0)(ct, g, d)
       t0b = bound(t0)(d)
       if {
-        isSubtype(t0b, ct)(cm, d) ||
-        isTypeWellFormed(ct)(cm, d) && {
-          {
-            isSubtype(ct, t0b)(cm, d) &&
-            dcast(ct, t0b)(cm)
-          } ||
-          {
-            !isSubclass(ct.className, t0b.className)(cm) &&
-            !isSubclass(t0b.className, ct.className)(cm) && {
-              println(s"stupid warning: ($ct) ($e0 : $t0b)")
-              true
+        isSubtype(t0b, classT)(ct, d) ||
+          isTypeWellFormed(classT)(ct, d) && {
+            {
+              isSubtype(classT, t0b)(ct, d) &&
+                dcast(classT, t0b)(ct)
+            } || {
+              !isSubclass(classT.className, t0b.className)(ct) &&
+                !isSubclass(t0b.className, classT.className)(ct) && {
+                println(s"stupid warning: ($ct) ($e0 : $t0b)")
+                true
+              }
             }
           }
-        }
       }
-    } yield ct
+    } yield classT
   }
 
-  def exprType(es: List[Expr])(cm: ClassTable, g: Γ, d: Δ): Option[List[Type]] =
-    es.map(exprType(_)(cm, g, d)) match {
+  def exprType(es: List[Expr])(ct: ClassTable, g: Γ, d: Δ): Option[List[Type]] =
+    es.map(exprType(_)(ct, g, d)) match {
       case lst if lst.contains(None) => None
       case lst => Some(lst.flatten)
     }
 
-  def methodTypes(ct: ClassType, methodName: VarName)(cm: ClassTable, g: Γ, d: Δ): Boolean = {
-    val method = cm(ct.className).methods.find(_.name == methodName).head
-    val d1 = (cm(ct.className).typeParams ++ method.typeParams)
+  def methodTypes(classT: ClassType, methodName: VarName)(ct: ClassTable, g: Γ, d: Δ): Boolean = {
+    val method = ct(classT.className).methods.find(_.name == methodName).head
+    val d1 = (ct(classT.className).typeParams ++ method.typeParams)
       .map(e => e.typeVar.name -> e.boundClass).toMap
-    val g1 = method.args.map(a => a.name -> a.argType).toMap + ("this" -> ct)
-    exprType(method.body)(cm, g1, d1) match {
+    val g1 = method.args.map(a => a.name -> a.argType).toMap + ("this" -> classT)
+    exprType(method.body)(ct, g1, d1) match {
       case None =>
         false
-      case Some(s) =>
+      case Some(bodyType) =>
         val argTypes = method.args.map(_.argType)
-        isSubtype(s, method.resultType)(cm, d1) &&
-          (method.resultType :: argTypes ++ method.typeParams.map(_.boundClass))
-            .forall(isTypeWellFormed(_)(cm, d1)) &&
-          validOverride(methodName, cm(ct.className).baseClass,
-            MethodType(method.typeParams, argTypes, method.resultType))(cm)
+        val resultTypeIsSubtypeOfDeclared = isSubtype(bodyType, method.resultType)(ct, d1)
+        val resultTypeOk = isTypeWellFormed(method.resultType)(ct, d1)
+        val argTypesOk = argTypes.forall(isTypeWellFormed(_)(ct, d1))
+        val typeParamsOk = method.typeParams.map(_.boundClass).forall(isTypeWellFormed(_)(ct, d1))
+        val overrideValid = validOverride(methodName, ct(classT.className).baseClass,
+          MethodType(method.typeParams, argTypes, method.resultType))(ct)
+
+        resultTypeIsSubtypeOfDeclared && resultTypeOk && argTypesOk && typeParamsOk && overrideValid
     }
   }
 
-  def classTypes(c: TypeName)(cm: ClassTable, g: Γ, d: Δ): Boolean = {
-    val classDef = cm(c)
+  def classTypes(c: TypeName)(ct: ClassTable, g: Γ, d: Δ): Boolean = {
+    val classDef = ct(c)
     val d1 = classDef.typeParams.map(e => e.typeVar.name -> e.boundClass).toMap
-    val ct = ClassType(c, classDef.typeParams.map(_.typeVar))
-    classDef.methods.forall(m => methodTypes(ct, m.name)(cm, g, d)) &&
-      (classDef.baseClass :: classDef.typeParams.map(_.boundClass) ++ classDef.fields.map(_.fieldType))
-        .forall(isTypeWellFormed(_)(cm, d1))
+    val classT = ClassType(c, classDef.typeParams.map(_.typeVar))
+    val allMethodsOk = classDef.methods.forall(m => methodTypes(classT, m.name)(ct, g, d))
+    val baseClassOk = isTypeWellFormed(classDef.baseClass)(ct, d1)
+    val typeParamsOk = classDef.typeParams.map(_.boundClass).forall(isTypeWellFormed(_)(ct, d1))
+    val fieldsOk = classDef.fields.map(_.fieldType).forall(isTypeWellFormed(_)(ct, d1))
+    allMethodsOk && baseClassOk && typeParamsOk && fieldsOk
   }
 
   def programType(p: Program): Option[Type] = {
