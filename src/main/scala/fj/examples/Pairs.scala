@@ -31,7 +31,7 @@ object Pairs extends App {
 
   val program = Program(ct, main)
 
-  ct.foreach(println)
+  ct.values.foreach(println)
   println(main)
   println(programType(program))
   println(evalProg(program))

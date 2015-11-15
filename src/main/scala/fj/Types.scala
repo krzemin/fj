@@ -1,5 +1,7 @@
 package fj
 
+import scala.annotation.tailrec
+
 object Types {
   import fj.AST._
   import fj.Aux._
@@ -16,6 +18,7 @@ object Types {
     }
   }
 
+  @tailrec
   def isSubtype(t: TypeName, u: TypeName)(ct: ClassTable): Boolean =
     if(t == "Object") u == "Object"
     else (t == u) || {
