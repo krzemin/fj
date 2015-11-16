@@ -23,7 +23,7 @@ object Types {
     if(t == "Object") u == "Object"
     else (t == u) || {
       val tBase = ct(t).baseClassName
-      tBase == u || isSubtype(tBase, u)(ct)
+      isSubtype(tBase, u)(ct)
     }
 
   def areSubtypes(ts: List[TypeName], us: List[TypeName])(ct: ClassTable): Boolean =
