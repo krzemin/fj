@@ -27,7 +27,7 @@ object AST {
   case class Cast(className: TypeName,
                   expr: Expr) extends Expr {
     override def toString =
-      s"($className)$expr"
+      s"($className)($expr)"
   }
 
   case class Class(name: TypeName,
