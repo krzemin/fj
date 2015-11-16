@@ -81,7 +81,7 @@ object Types {
       case None =>
         false
       case Some(SimpleType(eType)) =>
-        isSubtype(eType, d)(ct) && (mtype(name, d)(ct) match {
+        isSubtype(eType, method.resultType)(ct) && (mtype(name, d)(ct) match {
           case None =>
             true
           case Some(MethodType(ds, SimpleType(d0))) =>

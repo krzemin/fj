@@ -138,6 +138,11 @@ object Lists extends App {
 
   val p1e = eraseProgram(p1)
   p1e.classTable.values.foreach(println)
+
+  p1e.classTable.values.foreach { clz =>
+    println(s"does class ${clz.name} type? -> ${fj.Types.classTypes(clz.name)(p1e.classTable)}")
+  }
+
   println(fj.Types.programType(p1e))
   println(fj.Eval.evalProg(p1e))
 
