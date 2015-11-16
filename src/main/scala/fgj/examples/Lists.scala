@@ -133,7 +133,8 @@ object Lists extends App {
 
   val twicePlus1 = New(ClassType("TwicePlus1"), List(zero))
 
-  val p1 = Program(ct, three_two_)
+  val p1 = Program(ct, Invoke(three_two_, "sum", List(), List(zero)))
+  println(p1.main)
   println(programType(p1))
 
   val p1e = eraseProgram(p1)
@@ -143,6 +144,7 @@ object Lists extends App {
     println(s"does class ${clz.name} type? -> ${fj.Types.classTypes(clz.name)(p1e.classTable)}")
   }
 
+  println(p1e.main)
   println(fj.Types.programType(p1e))
   println(fj.Eval.evalProg(p1e))
 
@@ -158,5 +160,13 @@ object Lists extends App {
   val p3e = eraseProgram(p3)
   println(fj.Types.programType(p3e))
   println(fj.Eval.evalProg(p3e))
+
+  val p4 = Program(ct, Invoke(two, "plus", List(), List(one)))
+  println(p4.main)
+  println(fgj.Types.programType(p4))
+  val p4e = eraseProgram(p4)
+  println(p4e.main)
+  println(fj.Types.programType(p4e))
+  println(fj.Eval.evalProg(p4e))
 
 }
