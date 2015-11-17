@@ -90,8 +90,8 @@ object Types {
     }
   }
 
-  def classTypes(c: TypeName)(cm: ClassTable): Boolean =
-    cm(c).methods.forall(method => methodTypes(cm(c).name, method.name)(cm))
+  def classTypes(c: TypeName)(ct: ClassTable): Boolean =
+    ct(c).methods.forall(method => methodTypes(ct(c).name, method.name)(ct))
 
   def programType(p: Program): Option[Type] = {
     p.classTable.values.forall(c => classTypes(c.name)(p.classTable)) match {
