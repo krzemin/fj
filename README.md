@@ -1,29 +1,32 @@
-# Deep understanding of type erasure
+# Type erasure
 
 [TOC]
-## Introduction
 
-Certain statically typed programming languages provide concept of generic types, which is ability to parametrize types/classes with type parameters. This allows to write polymorphic code which can work with any type arguments. One of the key application we can found in standard libraries and type-argument-independent code like Lists, Vectors, Sets, Maps and algorithms working with them (e.g. sorting algorithms) which can be implemented once as "template code" and pervasively used when applied to concrete types.
 
-There are several different possible implementation of generics, including:
+# Introduction
 
- * *type-passing* semantics - it preserves informations about type parameters at runtime, which allows to differentiate `List<Integer>` to `List<String>` for example; this implementation is chosen in *.NET* languages like *C#*.
- * *instance-generating* (better name needed?) - this one is present in C++ language; the compiler generate instance of type-parametrized class for every set of generic parameters. So at runtime we have different classes like `List_of_Integers` or `List_of_Strings`.
- * *type-erasure* semantics - it eliminates informations about type parameters at compilation time, replacing them with their so-called *type bounds*; at runtime we have only `List` classes both for list of integers and list of strings (it's just a list of non-distinguishable objects); This implementation is used by Java compiler.
+Certain statically typed programming languages provide concept of generic types, which is ability to parametrize types with type parameters. Such feature enables writing polymorphic code which can work with arbitrary actual type arguments. One of the key application of generic types we can found in standard libraries, e.g. collections and algorithms working with them, which can be implemented once as "template code" and used with any concrete type.
 
-In this article we will try to better understand the last one. As a tool, we whill use [Featherweight Java](http://www.cis.upenn.edu/~bcpierce/papers/fj-toplas.pdf) by A. Igarashi, B. C. Pierce and P. Wadler - minimal core calculus for Java and Generic Java. More precisely, we will review practical implementation of this calculus, included in this repository, written in Scala as a host language.
+There are several different possible implementations of generics, including:
 
-### Why this approach?
+ * *type passing* - it preserves informations about type parameters at runtime, which allows to differentiate `List<Integer>` to `List<String>` for example; this implementation is chosen in *.NET* languages like *C#*.
+ * *instantiating* - this one is present in C++ language; the compiler generate instance of type-parametrized class for every set of generic parameters. So at runtime we have different classes like `List_of_Integers` or `List_of_Strings`.
+ * *type erasure* - it eliminates informations about type parameters at compilation time, replacing them with their so-called *type bounds*; at runtime we have only `List` classes both for list of integers and list of strings (it's just a list of non-distinguishable objects); This implementation is used by Java compiler.
 
-Well, there are plenty of articles describing *type erasure*, its practical consequences and limitations and tricks how to bypass them. As the opposite, this article will try to reveal some subtelties around understanding how the erasure is actually defined, what are the *type bounds* and how the substitutions work. To clearly talk about such delicate ideas, we need some precise and well-defined concepts, which *Featherweight Java* paper provides in approachable manner.
+In this article we will get into details of type erasure, reviewing implementation of two micro programming languages that imitate subsets of Java, being syntactically compatible. These languages are pure implementation of minimal core calculus for Java and GJ - *Featherweight Java* from paper by A. Igarashi, B. C. Pierce and P. Wadler. We will define syntax, look at the examples and express type erasure as translation from *FGJ* to *FJ* that preserves some important properties about types and behaviour.
 
-Although, reading the original paper is not required to understand the code included in this repository. All formal, mathematical definitions are straithforwardly translated to Scala code counterparts. 
+I will not explain all the details of erasure implementation which are described in original paper, which I really encourage to read afterwards for deeper understanding. Instead i will construct some interesting examples and we will review their erased versions to see actual differences and limitations.
 
-## Featherweight Java
+The implementation is written in Scala language. The only software that you should have installed in order run examples is [SBT](http://www.scala-sbt.org).
 
-Looking for a tool to precise reasoning about Java's type system we need to focus on modlelling only those parts of the language which are important from the type system perspective while ommiting those language features, which are not. Trying to model full Java in such a way will result enormous calculus which would be hard to grasp. *Featherweight Java* favours compactness over completeness then, providing only few combinators, while still being legal subset of Java, only little larger than original [λ-calculus](https://en.wikipedia.org/wiki/Lambda_calculus).
 
-To achieve simplicity, language is cut from "not important" features, which means:
+# Featherweight Java
+
+## Idea
+
+Looking for a tool to precise describing Java type system we need to focus on modelling only those parts of the language which are important from the type system perspective while ommiting those, which are not. Trying to model full Java in such a way will result enormous calculus which would be hard to grasp. Therefore *Featherweight Java* favours compactness over completeness providing only few combinators, while still being legal subset of Java, only little larger than original [λ-calculus](https://en.wikipedia.org/wiki/Lambda_calculus).
+
+To achieve simplicity, language is reduced from "not important" features. It means:
 
 * no concurrency primitives
 * no reflection
@@ -34,7 +37,7 @@ To achieve simplicity, language is cut from "not important" features, which mean
 * no member access control - all methods and fields are public
 * no primitive types
 * no null pointers
-* no assignments
+* no assignments/setters
 
 Instead, we focus only on minimal language subset, including:
 
@@ -45,24 +48,122 @@ Instead, we focus only on minimal language subset, including:
 * subtyping
 * casting
 
-### Syntax
+## Syntax
 
-Now, let's define syntax for our reduced language. At the beginning we introduce type aliases for *variable names* and *type names*, wchich are in fact represented as strings in host language.
+Let's start with a simple example.
 
-```scala
-  type VarName = String
-  type TypeName = String
+```
+class A extends Object {
+  A() { super(); }
+}
+class B extends Object {
+  B() { super(); }
+}
+class Pair extends Object {
+  Object fst;
+  Object snd;
+  Pair(Object fst, Object snd) {
+    super(); this.fst = fst; this.snd = snd;
+  }
+  Pair setfst(Object newfst) {
+    return new Pair(newfst, this.snd);
+  }
+}
 ```
 
-#### Classes
+FJ is class-based language where we can define classes like in java, but satisfying some constraints:
 
-As in full language, in *FJ* we have *classes*, which are identified by *name* and can declare super classes (*baseClassName*), which is obligatory (even if it is "Object") in our calculus. Beside, classes contain separate lists of field and method definitions.
+* we always write super class name, even if it's trivial (*Object*)
+* we always write receiver of field or method, even if it's trivial (`this`)
+* `this` is simply variable rather than a keyword, like in full Java
+* we always write constructor which initialize all class fields and call `super` which refers to super class constructor, which initializes its fields, etc...
+* constructors are only place where `super` or `=` appears
 
-*Field* is just type-annotated name.
+### Programs
 
-*Method* is identified by its name, it annotates its result type, arguments list and body.
+In FJ programs consist of class table and expression to be evaluated. We intuitively expect that such an expression:
 
-```scala
+```
+new Pair(new A(), new B()).setfst(new B())
+```
+... will evaluate to:
+```
+new Pair(new B(), new B())
+```
+
+### Expressions
+
+In FJ we have 5 types of expressions, which can appear in methods body:
+
+* variable access -- `newfst` or reference to `this`
+* object construction -- `new A()`, `new B()` or `new Pair(newfst, this.snd)` are examples of object construction
+* field access -- `this.snd`
+* method invocation -- `e3.setfst(e4)` this is example of invocation of method `setfst` on object `e3`
+* casts -- `(A)new Pair(new A(), new B()).fst` is example of type cast
+
+
+## Extending with generic types
+
+Let's back to our example implementation of `Pair` class and add generic type parameters `X` and `Y` as `first` and `second` field types.
+
+```
+class Pair<X extends Object, Y extends Object> extends Object {
+  X fst;
+  Y snd;
+  Pair(X fst, Y snd) {
+    super(); this.fst = fst; this.snd = snd;
+  }
+  <Z extends Object> Pair<Z, Y> setfst(Z newfst) {
+    return new Pair<Z, Y>(newfst, this.snd);
+  }
+}
+```
+
+The syntax is basically extended with:
+
+* type parameters lists for classes and methods -- in the example above `X` and `Y` are type parameters for class, while `Z` is type paramether of method; every type parameter have to be bounded by some actual type - in contrast to Java we always write the bound even if it is trivial (i.e. *Object*)
+* object construction and method invocation both take type arguments list
+
+Our refined program looks as follows.
+
+```
+new Pair<A,B>(new A(), new B()).setfst<B>(new B())
+```
+
+And it evaluates to expression:
+
+```
+new Pair<B,B>(new B(), new B())
+```
+
+## Type erasure as translation from FGJ to FJ
+
+We can express type erasure as compilation from FGJ syntax to FJ by replacing all type variables with their bounds and inserting some number of casts, when needed.
+
+The example class `Pair<X, Y>` after erasure looks exactly like previous `Pair` class without generic types.
+
+Similarly, following expression:
+```
+new Pair<A,B>(new A(), new B()).snd
+```
+erases to:
+```
+(B)new Pair(new A(), new B()).snd
+```
+Notice that the cast `(B)...` was inserted to recover type information about `snd` field.
+
+# Implementation review
+
+## FJ module
+
+### Syntax
+
+Classes, fields and methods are represented by following set of case classes.
+
+```
+type VarName = String
+type TypeName = String
+
 case class Class(name: TypeName,
                  baseClassName: TypeName,
                  fields: List[Field],
@@ -80,34 +181,7 @@ case class Argument(name: VarName,
                     argType: TypeName)
 ```
 
-##### Where are class constructors?
-
-For now, we assume that every class has single constructor implicitly defined which satisfies following conditions:
-
-* its number of arguments and their types corresponds to field definitions
-* it only performs initialization of class fields
-
-For example, having such Java class:
-
-```
-class A { 
-  X x; Y y; Z z;
-}
-```
-
-... we are assuming, that it has such straithforward constructor:
-
-```java
-public A(X x, Y y, Z z) {
-  this.x = x; this.y = y; this.z = z;
-}
-```
-
-For simplicity, we usually omit to write them down.
-
-#### Expressions
-
-So far so good, but what is definition of method bodies? How the language *abstract syntax tree* looks like?
+There is nothing surprising here - it is just data structures to hold all the information about class definition. Similarly, we encode expressions using following case classes.
 
 ```scala
 trait Expr
@@ -123,34 +197,11 @@ case class Cast(className: TypeName,
                 expr: Expr) extends Expr
 ```
 
-We have 5 types of expressions:
+In actual implementation all those classes have overriden method `toString` which prettifies syntax of our programs when printing to the console.
 
-* **variable access** - variable is denoted by its *name*
-* **fields access** - field is denoted by its *fieldName* on object that will be result of computing *expr*
-* **method invocation** - again we denote methods by its *methodName* on object computed from *expr*, but in this case before invoking the method we should also compute its arguments (*args*)
-* **new object construction** - class is identified by *name*, similarly to method invocation arguments (*args*) must be computed before object construction
-* **type cast** - expression should be casted to destination *className*
+#### Example encoded in Scala
 
-#### Example
-
-OK, it's time for little example. Let's assume we want to encode simple program - implementation of immutable pairs.
-
-```
-class A extends Object { }
-class B extends Object { }
-class Pair extends Object {
-  Object fst;
-  Object snd;
-  Pair(X fst, Y snd) {
-    this.fst = fst; this.snd = snd;
-  }
-  Pair setfst(Object newfst) {
-    return new Pair(newfst,this.snd);
-  }
-}
-```
-
-Such classes could be easily defined in our newly defined calculus, as follows.
+Let's review how we encode our first example with `Pair` class implementation.
 
 ```scala
 val A = Class("A", "Object")
@@ -162,51 +213,23 @@ val Pair = Class(
     Field("fst", "Object"),
     Field("snd", "Object")
   ),
-  methods = List(Method(
-    name = "setfst",
-    resultType = "Pair",
-    args = List(Argument("newfst", "Object")),
-    body = New(
-    className = "Pair",
-    args = List(Var("newfst"), FieldAccess(Var("this"), "snd"))
+  methods = List(
+    Method(
+      name = "setfst",
+      resultType = "Pair",
+      args = List(Argument("newfst", "Object")),
+      body = New("Pair", List(
+	    Var("newfst"), FieldAccess(Var("this"), "snd")
+	  ))
+    )
   )
-  ))
 )
 ```
 
-I think that example is self-describing. You can easily find corresponding parts from original Java syntax in our classes defined as Scala's data structures.
-
-#### Executable programs
-
-In full Java we have concept of *executable classes* which define static method:
-```java
-public static void main(String[] args)
-```
-
-But in our calculus we don't have concept of static methods. How then we define executable classes? In fact we doesn't have to use classes for that purpose. It is sufficient to defined *Program* as class table paired with expression we want to evaluate.
-
 ```scala
 type ClassTable = Map[TypeName, Class]
-
 case class Program(classTable: ClassTable, main: Expr)
-```
 
-In this example class table is mapping from type names to class definitions.
-
-So let's extend our previous example with simple computation.
-
-```
-new Pair(new A(), new B()).setfst(new B())
-```
-... which should evaluate to the irreducible form:
-
-```
-new Pair(new B(), new B())
-```
-
-Translating our example to *FJ* structures in Scala, we would like to have:
-
-```scala
 val classTable: ClassTable = buildClassTable(List(A, B, Pair))
 val main: Expr = Invoke(
   New("Pair", List(New("A"), New("B"))),
@@ -214,180 +237,79 @@ val main: Expr = Invoke(
   List(New("B"))
 )
 val program = Program(classTable, main)
+```
+
+We represent class table as `Map[TypeName, Class]` and have helper function `buildClassTable` which takes list of classes and returns class table built out of them.
+
+### Type checker
+
+There are type-checking rules provided in *FJ* paper, which are straightworwardly implemented in package `fj.Types`.
+
+Subtyping in *FJ* is reflexive and transitive closure of inheritance relation between classes. It can be decided only by looking at class table. Implementation of subtyping is given as recursive function at `fj.Types.isSubtype`.
+
+Main type-checking function is `fj.Types.exprType` which find concrete type of expression in given typing context *Γ* or indicates that expression is incorrectly-typed. Context *Γ* contains information about actual types of available variables and is represented as `Map[VarName, SimpleType]`. There is also auxilliary function `fj.Types.progType` which type-checks a whole program, ensuring that all classes, fields, methods are well-typed according to the typing rules and returns type of main expression.
+
+
+### CBV Evaluator
+
+In original *Featherweight Java* paper there was given reduction rules in form of so-called *operational semantics*, which doesn't precise the order of evaluation. When you try to implement expression evaluator you have to precise evaluation strategy. In this repository we provided implementation with [call by value](https://en.wikipedia.org/wiki/Evaluation_strategy#Call_by_value) semantics, which corresponds to that from full Java, where method's arguments are evaluated from left to right.
+
+From the *FJ* calculus point of view when some reduction error occurs (like trying to create object of unknown class or trying to invoke non-existing method), such configuration is called *stuck* and the evaluation cannot be continued. In this implementation we don't bother too much about error handling in the interpreter. When some error configuration is detected, we throw `RuntimeException` with appropriate error message, forgetting about result we computed so far.
+
+The evaluator is rather simple adaptation of reduction rules. You can find it at `fj.Eval.evalExpr` for evaluation expressions in given context (class table) and auxilliary `fj.Eval.evalProg` which takes program, builds class table and evaluates its main expression.
+
+### Running examples
+
+```scala
+println(program.main)
+// it should print:
+// new Pair(new A(), new B()).setfst(new B())
+
+val programT = programType(program)
+// it should compute Some(Pair), which is the type
+// of main expression
+
 val result = evalProg(program)
 // should compute to
 // New("Pair", List(New("B"), New("B")))
+println(result)
+// and should print:
+// new Pair(new B(), new B())
 ```
 
-Helper function `buildClassTable` build Scala's *Map* from list of class definitions. 
+You can run similar example by typing:
 
-Note that in example above we used function `evalProg` which executes our *Featherweight Java* programs. Details are described in one of following chapters. 
+`sbt "runMain fj.examples.Pairs"`
 
-### Type system
+Let's encode some more interesing program in our language. In *FJ* we don't have primitive types, especially numbers. But there is a way to encode natural numbers using just classes and objects, similarly to [Church numerals](https://en.wikipedia.org/wiki/Church_encoding#Church_numerals), but instead of folding functions, we will fold instances of class *Succ* n times over the instance of class *Zero* to represent number n.
 
-Like every language with static typing, our *FJ* should have ability to check type correctness without actually running a program. Let's review type checker implementation that we have.
-
-#### Types
-
-So how the types clould be represented in our host language?
-
-```scala
-trait Type
-case class SimpleType(name: TypeName) extends Type
-case class MethodType(argTypes: List[SimpleType],
-                      resultType: SimpleType) extends Type
 ```
-
-Without generic types, our type system is really simple. It has only two form of types:
-
-* **simple types** - they are reffering by name to valid class definitions;
-* **method types** - they are auxilliary types useful when typechecking methods, while we have return type and types for methods' arguments; since in *FJ* methods are not first-class values, they refer to *SimpleTypes* rather than *Types*.
-
-We distinguish special *top type* which every class extends. It is *Object* type, which can be simply encoded as:
-
-```scala
-SimpleType("Object")
-```
-
-#### Subtyping
-
-As part of our type checking phase, we will have to settle so called *subtyping relation*. In simple words, *subtyping* is defined as reflexive and transitive closure of relation defined by `extends` keyword between classes.
-
-We can decide this relation only by looking at class table and recursively resolving path from type *t* to *u*. Implementation of that function can look as follows.
-
-```scala
-def isSubtype(t: TypeName, u: TypeName)
-             (ct: ClassTable): Boolean = {
-  if(t == "Object") u == "Object"
-  else (t == u) || {
-    val tBase = ct(t).baseClassName
-    tBase == u || isSubtype(tBase, u)(ct)
-  }
+class Nat extends Object {
+  Nat() { super(); }
+  Nat succ() { return new Succ(this); }
+}
+class Zero extends Nat { 
+  Zero() { super(); }
+  Nat plus(Nat n) { return n; }
+}
+class Succ extends Nat {
+  Nat prev;
+  Succ(Nat prev) { super(); this.prev = prev; }
+  Nat plus(Nat n) { return this.prev.plus(n.succ()); }
 }
 ```
 
-#### Typing expressions
+We represent 0 as `new Zero()`, 1 as `new Succ(new Zero())`, 2 as `new Succ(new Succ(new Zero()))`, etc.
 
-You could expect, that type-checking expression takes expression and returns a type if its well-typed or indicates type-error in expression. That's partially true. To decide that relation, we need class table and some kind of mapping from free variables to its types (more precisely, mapping only to *simple types* is enough). Let's call that mapping `Γ` (gamma).
+Addition is implemented as recursive function with base case at 0 (indeed, `0 + n = n`). Recursive step is in the class `Succ` and it reduces to transforming addition `a + b` into `(a-1) + (b+1)` until we reach base case for `a = 0`. Note that method `succ` can be implemented in base class `Nat` as wrapping the number into object of `Succ` class.
 
-```scala
-type Γ = Map[VarName, SimpleType]
-def exprType(e: Expr)(g: Γ, ct: ClassTable): Option[SimpleType]
-```
+You can find example with numbers at `fj.examples.Numbers` and run it by typing:
 
-I will not rewrite full implementation in this article. You can find it at `fj.Types.exprType` in this repository. Instead, I'll try to explain subtelties of deciding about typing expressions. Let's review it for all forms of expressions:
+`sbt "runMain fj.examples.Numbers"`
 
-* **Var** -- we have variable name, but in case of expressions it is free variable, so it have to be defined in our mapping *Γ*; otherwise, we return *None*, as there is some type error (maybe incorrect variable name?)
-* **FieldAccess** -- first, we have to type expression; having such type (more precisely, *SimpleType*), we can look up into class table and gather methods in that class and all superclasses; then we can find field by name and return its type as a resulting type
-* **Invoke** -- this case is very similar to *FieldAccess*, but now we have type annotations for method arguments; we have to type-check all expressions passed as invocation parameters and ensure that every computed type is subtype of corresponding method argument type annotation; if it succeeds, as resulting type we take method's return type
-* **New** -- this case is indeed similar to method invocation sice *new* operator actually invokes constructor (which we assumed to be defined implicitly); the only one difference is that instead of methods' arguments we are taking all fields from class definition (and all its super classes); as a result type, we take *SimpleType* with class name whose object we are trying to construct
-* **Cast** -- this one is the most interesting one; let's assume that actual expression type is *D* and cast destination type is *C*; we have 3 following cases:
-  * *D* is subtype of *C* -- this is case of so-called *upcasting* - we can always freely perform cast to superclass of actual type, yielding *C* as result type
-  * *C* is subtype of *D* -- this is case of so-called *downcasting* - we can perform cast to subclass only if it is actual subclass (i.e. *C* != *D*, since our subtyping relation is reflexive)
-  * no *C* is subtype of *D* neither *D* is subtype of *C* -- this is probably the most subtle case, it's called *stupid cast*; actually Java compiler doesn't allow stupid casts and treats them as type errors (which is intuitively correct); in *Featherweight Java* they are present to formulate type soundness proof in small-step semantics and its special nature is indicated by *supid warning*. You can read about details in original *FJ* paper.
+## FGJ module
 
-#### Typing classes and methods
-
-Ok, so how we type-check our class definitions? It seems, that it's enough to check all methods whether they are well-typed.
-
-And when a method is well-typed? Well, in case of method, the only one thing we have to check is to check whether declared return type is compatible with actual inferred method body type. But wait - method body is an *Expr* and type-checking expressions requires special mapping *Γ* to be define. So how we define this mapping here?
-
-As *Γ* is mapping from variable names to variable types, our question is: what variables we can refer to inside method body? Actually, there are 2 kind of such variables:
-
-* method arguments
-* class fields
-
-But every class field is accessed through `this` metavariable, so it is enough to take into consideration only *this* mapped to class type inside method is defined together with all argument names mapped to their type annotations.
-
-There is one subtelty connected with *method overriding* here. Since we have no method overloading in *Featherweight Java*, we say that some method *m1* is *overriding* in some class if method *m2* with such name is defined in one of its super classes. Since in case of *FJ* covariant result types is not allowed in case of method definitions, we have to ensure that in this case methods *m1* and *m2* corresponds considering its signatures. In other words, every for all *m1* and *m2* methods arguments must be the same; moreover result types of *m1* and *m2* must be the same.
-
-All the implementations you can find in `fj.Types.methodTypes` and `fj.Types.classTypes`.
-
-#### Typing programs
-
-Our *Program* definition is well typed if and only if:
-
-* all classes in class table are well-typed
-* expression *main* is well-typed in empty *Γ* environment
-
-We can express this type-checking of full programs as function with following signature.
-```
-Program => Option[Type]
-```
-Implementation of this function you can find in `fj.Types.programType`.
-
-### Execution semantics
-
-In original *Featherweight Java* paper there are only operational semantic rules given, which doesn't specify order of execution. We define evaluation that is the same as in full Java (it's called *call by value*), when we evaluate all methods' arguments before method is executed. 
-
-Anyway, evaluation is defined as reduction to so called object *normal form*. How this normal form look like?
-
-#### Values
-
-Our language is object-oriented and every value in memory has form of object instantiated with arguments passed to a class's constructor are also objects.
-
-```scala
-case class Value(className: TypeName, args: List[Value])
-```
-
-#### Evaluating expressions
-
-Our evaluator is just a function that takes expression, variable environment and class table and returns a value.
-
-```scala
-type Env = Map[VarName, Value]
-def eval(expr: Expr)(env: Env, cm: ClassTable): Value
-```
-
-> **Error handling**
-> For the sake of simplicity in this article we won't bother too much about error handling and encoding them in evaluator's return type. When expression can't be evaluated correctly it just throw *RuntimeException* with appropriate error message.
-
-Let's review our expression's evaluator implementation considering form of expressions we want to evaluate:
-
-* **Var** -- we access to a variable, so we lookup its value in our variable environment and return it as as value of evatuation
-* **FieldAccess** -- first we have to evaluate underlying expression whose field we want to access; having such an object, we have to look up into class table for all fields (including super-type fields) of class of that object; then we have to select corresponding argument of computed underlying obejct, which corresponds to name we are trying to access
-* **Invoke** -- this case first reduces to evaluating underlying expression; then we have to evaluate all actual arguments of method we are trying to evaluate; then we can evaluate method body within mapping *Env* enriched with:
-  * `this` mapped to object (value) of evaluated underlying class
-  * all argument names mapped to its actual evaluation results (values)
-* **New** -- it is probably the simplest case - we instantiate object with evaluated arguments as constructor arguments
-* **Cast** -- we seamlessly allow our underlying expression to be evauated further, as we checked types before
-
-#### Evaluating full programs
-
-Now, we can define our *FJ* program's evaluator. We simply evaluate our program's main body expression within empty *Env* and class table defined in our program.
-
-The signature is:
-
-```scala
-def evalProg(prog: Program): Value
-```
-
-...and you can find the implementation under `fj.Eval.evalProg`.
-
-## Featherweight Generic Java
-
-There is one problem with `Pair` class example defined in FJ. The language provide types, but the `Pair` implementation is not type safe. Having object `new Pair(new A(), new B())` we can easily substitute first argument with `new B()`. To restrict that, we could define class `class Pair_A_B { A fst; B snd; }`, but that kind of implementation is not re-usable for any `A` and `B` types any more. In full Java, with generic types, we would want to solve this problem by parametrizing our `Pair` class with type parameters, let's say *X* and *Y* and use them as types of first and second field, correspondingly.
-
-```
-class Pair<X extends Object, Y extends Object> extends Object {
-  X fst;
-  Y snd;
-  Pair(X fst, Y snd) {
-    this.fst = fst; this.snd = snd;
-  }
-  <Z extends Object> Pair<Z, Y> setfst(Z newfst) {
-    return new Pair<Z, Y>(newfst, this.snd);
-  }
-}
-```
-
-Now we have also generic `setfst` method, which can be executed for any `newfst` argument which now it has type `Z` in argument; this method can correctly return new pair with first type annotated to `Z`.
-
-How could we extend our minimal-core language with such kind of generic types?
-
-### Changes in syntax
-
-Let's review extended syntax definition of our language, which we call *Featherweight Generic Java* (or *FGJ* shorthanded).
+### Syntax
 
 #### Types
 
@@ -407,8 +329,6 @@ We have new type alias *TypeVarName* for type variables (again, internally just 
 
 #### Classes
 
-Ok, but how can we define our parametrized classes now?
-
 ```scala
 case class BoundedParam(typeVar: TypeVar,
                         boundClass: ClassType)
@@ -417,10 +337,20 @@ case class Class(name: TypeName,
                  typeParams: List[BoundedParam],
                  baseClass: ClassType,
                  fields: List[Field],
-                 methods: List[Method]) 
+                 methods: List[Method])
+
+case class Field(name: VarName, fieldType: Type)
+
+case class Method(name: VarName,
+                  typeParams: List[BoundedParam],
+                  resultType: Type,
+                  args: List[Argument],
+                  body: Expr)
+                  
+case class Argument(name: VarName, argType: Type)
 ```
 
-`BoundedParam` corresponds to single `Z extends Object` from our example. It is definition of type variable, bounded by some class type. In full Java, when bound is trivial (i.e. *Object*), we usually omit `extends Object` part and leave only type variable. Notice that using such definition, we can write type bound as recursive type expression, like: `X extends C<X>` which is perfectly OK.
+`BoundedParam` corresponds to single `Z extends Object` from our example. It is definition of type variable, bounded by some class type.. Notice that using such definition, we can write type bound as recursive type expression, like: `X extends C<X>` which is perfectly OK.
 
 Classes are parametrized by a list of *bounded parameters*. Notice change in base class signature which now is not only name reference, but can be parametrized with type variables, like in example below.
 
@@ -428,21 +358,9 @@ Classes are parametrized by a list of *bounded parameters*. Notice change in bas
 class List<X extends Object> extends Collection<X> { ... }
 ```
 
-How our fields and methods are represented in *FGJ*?
+Methods also can be parametrized with type parameters, as well we can use type variables to encode method's return type, arguments type and fields type.
 
-```scala
-case class Field(name: VarName, fieldType: Type)
-case class Method(name: VarName,
-                  typeParams: List[BoundedParam],
-                  resultType: Type,
-                  args: List[Argument],
-                  body: Expr)
-case class Argument(name: VarName, argType: Type)
-```
-
-Only noticeable change is that now methods now can be parametrized with list of bounded parameters, as well as classes are. Field types, argument types and result types of methods are just adjusted to refined definition of *Type*.
-
-`ClassTable` and `Program` definitions are straightforwardly adjusted to use newly defined types.
+`ClassTable` and `Program` definitions are straightforwardly adjusted to use refined types.
 
 #### Expressions
 
@@ -450,133 +368,372 @@ AST for expressions is mostly unchanged.
 
 ```scala
 trait Expr
+
 case class Var(name: VarName) extends Expr
-case class FieldAccess(expr: Expr, fieldName: VarName) extends Expr
+case class FieldAccess(expr: Expr,
+                       fieldName: VarName) extends Expr
 case class Invoke(expr: Expr,
                   methodName: VarName,
                   typeArgs: List[Type],
                   args: List[Expr]) extends Expr
-case class New(classType: ClassType, args: List[Expr]) extends Expr
-case class Cast(classType: ClassType, expr: Expr) extends Expr
+case class New(classType: ClassType,
+               args: List[Expr]) extends Expr
+case class Cast(classType: ClassType,
+                expr: Expr) extends Expr
 ```
 
-The only difference beside type adjustments is in *Invoke* expression which now takes also list of type parameters to be instantiated, in contrast to full Java, where inference of invocation type arguments is obligatory.
+The only difference beside type adjustments is in *Invoke* expression which now takes also list of type parameters to be instantiated.
 
-### Extended type-checking
+### Type checker
 
-I will not provide full step-by-step description of FGJ type-checker as it probably might result in very long, formal and hard to understand text. Instead, I will describe only key differences and general idea to type-check programs with bounded type-parameters. Full description of typechecking rules for *FGJ* you can find in chapter 3.2 of original *FJ* paper.
+In *FGJ* typechecking rules are bit more complicated. First of all, subtyping is not relation between class names any more, but is generalized for all type forms, including type variables. Therefore we differentiate two separate relations:
 
-#### Subclassing vs. subtyping
-
-As our types gets more complicated, previous implementation of subtyping is not sufficient in this case. We want to distinguish 2 different relations:
-
-* *subclassing* as relation between class names, which totally corresponds to *FJ subtyping*
-* *subtyping* as real relation between all type forms, including parametrized ones
-
-#### Δ mapping and bounds resolving
-
-Similarly as we had *Γ* mapping for variables and its values, we define mapping from type variables to actual types - *Δ*.
-
-```scala
-type Δ = Map[TypeVarName, ClassType]
-```
-
-We will maintain this type variable environment inside of classes and methods. It will be initialized using classes and methods parameter lists. Type variables will be mapped to its defined bounds.
-
-Having such mapping, we can define function for bounds resolving, which works generally for type variables and class types (which are its trivial bounds).
-
-```scala
-def bound(t: Type)(d: Δ): ClassType = t match {
-  case TypeVar(name) => d(name)
-  case u: ClassType => u
-}
-```
-It is useful both in type-checker and during type erasure.
-
-#### Deciding subtyping with Δ
-
-Subtyping relation in *FGJ* can be decided within given context *Δ*. Still it is reflexive and transitive relation, but now has 2 interesting base cases:
-
-* *subtyping type variables* - type variable *X* is subtype of its direct bound, which is *Δ(X)*; in fact the bound is the only information about type variable that we have in the program, so we reuse it here
-* *subtyping classes* - a class *A* instantiated with some type arguments is subtype of its base class *B* where type parameters from class *A* were substituded by those type arguments
-
-Analyzing one of previous example with `List` and `Collection`, we would have `List<Integer>` is subtype of `Collection<Integer>`, which is absolutely desired.
+* *subclassing* - it corresponds to *FJ*'s subtyping, can be decided only using class table
+* *subtyping* - generalized relation between all types, can be decided using additional environment *Δ* which maps type variables to their bounds, where bounds are just class types with actual type arguments given
 
 #### Covariant method overriding
 
-One key difference between *FJ* and *FGJ* is that now we allow covariant method overriding.
+Unlike to *FJ*, where we allowed method overriding only with corresponding (i.e. identical) signatures, in *FGJ* covariant method overriding on the method's result type is allowed. It means that the result type of a method may be a subtype of the result type of the corresponding method in the superclass, although the bounds of type variables and the argument types must be identical (modulo renaming of type variables).
 
+Function for typing expressions is located at `fgj.Types.exprType`, now it takes expression, class table and two contexts *Γ* and *Δ*. Again, we have auxilliary `fgj.Types.programType` which checks also well-typedness of classes and methods, this time regarding covariance in method result argument.
 
-### Type-passing evaluator
+### Excercise: type-passing evaluator
 
-As mentioned in the introduction, there are several possible implementation of generics, one of them is *type passing*. How could we implement such semantics?
+This time we will not provide CBV evaluator for type-passing semantics. We will leave it as an excercise for the reader to take *FJ* evaluator code and adjust it to support evaluating programs in syntax with generic types.
 
-It would be straightforward extension to our previous *FJ* evaluator.
-
-```scala
-case class Value(classType: ClassType, args: List[Value])
-type Env = Map[VarName, Value]
-def eval(expr: Expr)(env: Env, cm: ClassTable): Value
-```
-
-Notice that subtle difference that is present in definition of values. Now, instead of class names, we have full class types, which hold actual type arguments!
-
-We will not provide such implementation leaving reader ability to experiment and define such evaluator as an excercise.
+> **Hint:** as well as we maintain environment for variables and its values, you may need to maintain additional environment mapping type variables to actual class types.
 
 ## Type erasure
 
-Instead, we focus on main topic of this article, which is *type erasure*. So what this erasure is all about? It's about erasing type parameters from classes/methods/expressions. More precisely, using our definitions, it will be translation from *FGJ* `Program` to *FJ* `Program`, which preserves *meaning* of original *FGJ* program.
+In this article we explore other possible implementation of generics, which is present in full Java compiler. `javac` performs translation from full language with generic types to intermediate form, which corresponds language syntax without generics (like our *FJ*). Then bytecode is generated, which maintains no information about type parameters.
 
-### Erasing types
+### Implementation review
 
-Starting from ground up, let's define erasure for our types.
+Type erasure in this repository is implemented in package `erasure.Erasure`. Again, this is simple adaptation of erasure rules, helper rules and substitutions in our actual representation. We will translate:
 
-*FGJ* types are either type variables or class types instantiated with some type arguments. In case of class types, we can omit all type arguments and leave only class name as erased type.
+* FGJ types to FJ types -- `erasure.Erasure.eraseType`
+* FGJ expressions to FJ expression -- `erasure.Erasure.eraseExpr`
+* FGJ classes to FJ classes -- `erasure.Erasure.eraseClass`
+* and finally we have auxilliary function which merge results and translate a whole FGJ program to FJ program -- `erasure.Erasure.eraseProgram`
 
-*|Pair&lt;A, B&gt;|<sub>Δ</sub> = Pair*
+### Examples
 
-But what in case of type parameters? Remember that all type parameters are bounded, so first we have to resolve bound for class variable which is a class type. Then we can process as above.
+#### Example #1 - natural numbers revisited
 
-Generally, we can implement type erasure as follows.
+Let's now explore some more comprehensive example to see our translation rules in action.
 
 ```
-def eraseType(t: FGJ.Type)(d: Δ): FJ.TypeName = {
-  bound(t)(d).className
+class Summable<X extends Object> extends Object {
+  X plus(X other) { return other; }
+}
+
+class Nat extends Summable<Nat> {
+  Nat() { super(); }
+  Succ succ() { return new Succ(this); }
+}
+
+class Zero extends Nat { 
+  Zero() { super(); }
+}
+
+class Succ extends Nat {
+  Nat prev;
+  Succ(Nat prev) { super(); this.prev = prev; }
+  Nat plus(Nat n) {
+    return this.prev.plus(n.succ());
+  }
 }
 ```
 
-*|T|<sub>Δ</sub> = C*,
-&nbsp;&nbsp;&nbsp;&nbsp; where *C&lt;T<sub>1</sub>, ..., T<sub>n</sub>&gt; = bound<sub>Δ</sub>(T)*
+We introduced class `Summable` which have one method `plus`. In Java we would probably make this class an interface, but in *FGJ* we don't have interfaces, so we have to provide implementation -- return some value of type `X`. Fortunately we have parameter of type `X`, so we use it as a return value. It turns out that it is still valid implementation of `plus` for class `Zero`, so we don't have to re-implement it there. We make our `Nat` class a subclass of `Summable<Nat>`. For class `Succ` implementation of `plus` is the same as before. Spot another slight difference in return type of `succ` method in class `Nat` -- now it is declared to be `Succ`; we will need that to demonstrate erasure of covariant method overriding in result type in one of the following examples.
 
-### Erasing expressions
+Let's use function `erasure.Erasure.eraseClass` to generate erasure for these classes.
+```
+class Summable extends Object {
+  Summable() { super(); }
+  Object plus(Object other`) { return other`; }
+}
 
-Erasure of expressions actually depends on erasure of types. 
+class Nat extends Summable {
+  Nat() { super(); }
+  Succ succ() { return new Succ(this); }
+}
+
+class Zero extends Nat { 
+  Zero() { super(); }
+}
+
+class Succ extends Nat {
+  Nat prev;
+  Succ() { super(); }
+  Object plus(Object n`) {
+    return (Nat)(this.prev.plus((Nat)(n`).succ())); 
+  }
+}
+```
+
+What did the erasure change here?
+
+* in class `Summable` type parameters list was removed and all type variables were replaced with `Object` -- which was declared bound for `X` variable (see `X extends Object` in original class
+* class `Nat` now extends our erased `Summable` class
+* according to `plus` method signature change in `Summable`, signature of `plus` in `Succ` class were adjusted to be identical (modulo argument names); to recover information about types, two casts to `Nat` were inserted: first over the access to `n'` variable, second over the invocation of method `plus` which happened to return natural number in generic version
+
+Now, let's construct simple expression using these classes. This will correspond to arithmetic operation `2 + 1`
+
+```
+new Succ(new Succ(new Zero())).plus(new Succ(new Zero()))
+```
+
+After erasure it is almost the same.
+
+```
+(Nat)new Succ(new Succ(new Zero())).plus(new Succ(new Zero()))
+```
+
+Now, our `plus` method return `Object`, but type erasure was smart enough to insert upcast in place of invocation of this method, to recover correct type from original program.
+
+#### Example #2 - summable lists
+
+Let's review another example -- lists which can contain some summable elements and are able to compute total `sum` of all their elements.
+
+```
+class List<X extends Summable<X>> extends Object {
+  List() { super(); }
+  X sum(X zero) { return zero; }
+}
+
+class Nil<X extends Summable<X>> extends List<X> {
+  Nil() { super(); }
+}
+
+class Cons<X extends Summable<X>> extends List<X> {
+  X head;
+  List<X> tail;
+  Cons(X head, List<X> tail) {
+    super(); this.head = head; this.tail = tail;
+  }
+  X sum(X zero) {
+    return this.tail.sum(zero).plus(this.head);
+  }
+}
+```
+
+We have base `List<X>` class and its two subclasses:
+
+* `Nil` corresponding to empty list
+* `Cons` -- list constructor which holds some `head` of type `X` and rest of list -- `tail` of type `List<X>`
+
+For example list `[1, 0]` can be encoded as following expression:
+`new Cons(new Succ(new Zero()), new Cons(new Zero(), new Nil()))`
+
+Method `sum` takes parameter `zero` which will be summed with all elements of our list. Overriden occurence uses recursive call first to compute sum of `tail` (it will return `X`) and invoke method `plus` adding `head` element to the sum. Notice that in this example class there is no any occurrence of classes `Nat`, `Zero` or `Succ` -- we were able to express `sum` operation on list using only abstract `plus` which we defined for `Summable`s.
+
+> You can consider to make a `List` class subtype of `Summable`.
+> 1. What is the meaning of `plus` regarding to lists?
+> 2. How exactly would base class signature would look like?
+
+Let's review erasure of lists implementation.
+
+```
+class List extends Object {
+  List() { super(); }
+  Summable sum(Summable zero`) { return zero`; }
+}
+
+class Nil extends List {
+  Nil() { super(); }
+}
+
+class Cons extends List {
+  Summable head;
+  List tail;
+  Cons(Summable head, List tail) {
+    super(); this.head = head; this.tail = tail;
+  }
+  Summable sum(Summable zero`) {
+    return (Summable)(this.tail.sum(zero`).plus(this.head));
+  }
+}
+```
+
+Again, all type parameters were removed and occurrences of type variables replaced with `Summable`s. Erasure to *FJ* is optimized in that way that it doesn't insert casts, if they are not necessary -- see implementations of `sum` method and references to `zero'` argument which are not casted. The only cast we need to insert is around invocation of `plus` method from `Summable`, which returns `Object`.
+
+Having the context of `Nat` and `List` classes, let's consider such expression:
+
+```
+new Cons<Nat>(
+  new Succ(new Succ(new Succ(new Zero()))),
+  new Cons<Nat>(
+    new Succ(new Succ(new Zero())),
+    new Nil<Nat>()
+  )
+).sum(new Zero())
+```
+...and its erased version:
+
+```
+(Nat) new Cons(
+  new Succ(new Succ(new Succ(new Zero()))),
+  new Cons(
+    new Succ(new Succ(new Zero())),
+    new Nil()
+  )
+).sum(new Zero())
+```
+
+You recognize the trick? We constructed list of 2 natural numbers (3 and 2) by instantiating `Cons`s with type argument `Nat`, which were removed during erasure. Method `sum` returns `Summable`, but hopefully cast to `Nat` were inserted; thanks to this operations, both expressions have the same types in corresponding type checkers (both types to `Nat`).
+
+We can now evaluate erased expression using *FJ* evaluator:
+```
+new Succ(new Succ(new Succ(new Succ(new Succ(new Zero())))))
+```
+
+We got encoding of number 5 which is sum of list elements (3 and 2) with explicit 0 passed to `sum`.
+
+#### Example #3 - functions
+
+So far we have seen rather simple code. Now let's try to encode something more advanced.
+
+We want to encode interface for kind of unary functions which takes single argument of type `X` and returns value of type `Y`.
+
+```
+class UnaryFunc<X extends Object, Y extends Object> extends Object {
+  Y ignored;
+  UnaryFunc(Y ignored) { super(); this.ignored = ignored; }
+  Y apply(X arg) {
+    return this.ignored;
+  }
+}
+```
+
+We want to represent simple functions as instances of `UnaryFunc` class with single method - `apply` for computing function value for given argument. Again, due to lack of interfaces, we have to provide trivial implementation for `apply`. Now the trick is to create member of the same type as function's result type and return it in our trivial implementation.
+
+Let's encode simple function for natural numbers `f(n) = 2 * n + 1`.
+
+```
+class TwicePlus1 extends UnaryFunc<Nat, Nat> {
+  TwicePlus1(Nat ignored) { super(ignored); }
+  Succ apply(Nat n) {
+    return n.plus(n).succ();
+  }
+}
+```
+
+Class `TwicePlus1` represents that function by replacing multiplication by 2 with addition of arguments and incrementation by calling `succ`. Notice that since for every natural argument, result of such a function will be positive number, we can encode it within type system by declaring result as `Succ` type, while still passing `Nat` as second type argument to `UnaryFunc`. This is demonstration of aforementioned *covariant method overriding* in *FGJ* -- we can declare result type of overriden method as a subtype of result of method declared in super class, even if this type was a type variable -- we can now see that subtyping takes care of resolving type variables and  actual type arguments passed; that's the reason why we need contexts *Δ*.
+
+Let's review erasure of classes `UnaryFunc` and `TwicePlus1`.
+
+```
+class UnaryFunc extends Object {
+  Object ignored;
+  UnaryFunc(Object ignored) { super(); this.ignored = ignored; }
+  Object apply(Object arg`) {
+    return this.ignored;
+  }
+}
+
+class TwicePlus1 extends UnaryFunc {
+  TwicePlus1(Object ignored) { super(ignored); }
+  Object apply(Object n`) {
+    return (Nat)((Nat)(n`).plus((Nat)n`)).succ();
+  }
+}
+```
+
+The same as before, generic types were removed from our classes and replaced with their bounds -- `Object`s. Covariant method overriding is not present in *FJ*, so erasure had to ensure that types in methods signatures in both classes are identical. Proper casts were inserted in overriden method `apply`:
+
+ * two casts around reference to the variable *n'* - to recover its type, which was `Nat` in example with generic types
+ * we have cast to `Nat` over invocation of method `plus`, as well in previous examples
+ 
+#### Combining it together
+
+Let's extend our `List` class to support mapping its elements with unary functions.
+
+```
+class List<X extends Summable<X>> extends Object {
+  ...
+  <Y extends Summable<Y>> List<Y> map(UnaryFunc<X, Y> f) {
+    return new Nil<Y>();
+  }
+}
+
+class Cons<X extends Summable<X>> extends List<X> {
+  ...
+  <Y extends Summable<Y>> List<Y> map(UnaryFunc<X, Y> f) {
+    return new Cons<Y>(f.apply(this.head), this.tail.map(f));
+  }
+}
+```
+
+In base class we added method `map` parametrized with type parameter `Y` which takes unary function and simply constructs empty list of summables `Y`. In `Cons` we applying function `f` to the head of the list and mapping `f` on tail, then we construct new list with argument of new types.
+
+How did erasure change?
+
+```
+class List extends Object {
+  ...
+  List map(UnaryFunc f`) { return new Nil(); }
+}
+
+class Cons extends List {
+  ...
+  List map(UnaryFunc f`) {
+    return new Cons(
+      (Summable)(f`.apply(this.head)),
+      this.tail.map(f`)
+    );     
+  }
+}
+```
+
+We completely forgot about function types -- the only type we have to recover using casts is type after applying function which has to be `Summable` to proper construct our list.
+
+Finally, let's construct example program which uses all classes we defined so far.
+
+```
+new Cons<Nat>(
+  new Succ(new Zero()),
+  new Cons<Nat>(
+    new Succ(new Succ(new Zero())),
+    new Nil<Nat>()
+  )
+).map<Nat>(new TwicePlus1(new Zero())).sum(new Zero())
+```
+
+We construct list `[1,2]`, map it by function `TwicePlus1` to `[3,5]` and sum all elements, which have to be equal `8`.
+
+Erased version contains only topmost cast to `Nat` (remember, `sum` result type was `Summable`, but we have concrete subclass here).
+
+```
+(Nat)(new Cons(
+  new Succ(new Zero()),
+  new Cons(
+    new Succ(new Succ(new Zero())),
+    new Nil()
+  )
+).map(new TwicePlus1(new Zero())).sum(new Zero()))
+```
+
+Erased program evaluates to encoding of number `8`, as we expected.
+
+```
+new Succ(new Succ(new Succ(new Succ(new Succ(new Succ(new Succ(new Zero())))))))
+```
+
+# Erasure properties
+
+We have seen type erasure in action on programming language, which although simplified to bare minimum, is able to encode type really advanced examples. We reviewed erasure of all examples and saw types of some of them, which corresponds to types found by generic typechecker. Moreover, erased programs behaved exactly as we expected when defining their generic version. Is it matter of convenient examples, or is it kind of general property?
+
+Authors of original *Featherweight Java* paper come with response, stating several theorems, which most important are:
+
+1. **Erasure preserves typing**. For all well-typed *FGJ* class tables, they are well-typed after erasing under *FJ* typing rules.
+2. **Erasure preserves execution results**. If well-typed *FGJ* program evaluates to some value *w* in type-passing semantics, then erased program evaluates to erasure of value *w* in *FJ* evaluator.
+
+There are some technical difficulties in proving second theorem, connected with insertion of casts during erasure. They are proved and clearly commented.
 
 
+# Related work / resources
 
-### Erasing methods
-
-### Erasing classes
-
-
-## Erasure examples
-
-
-
-## More resources
-
-* original *Featherweight Java* paper
-* slides from my presentation at PJZO14 (*Fundaments of Object Oriented Languages*) seminary at University of Wrocław
-
-
-
-
-
-
-
-
-
-
-
-
+* original FJ paper
+* my slides from PZJO14 seminary
 
