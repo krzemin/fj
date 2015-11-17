@@ -10,15 +10,12 @@ object Numbers extends App {
   val Nat = Class("Nat", "Object",
     fields = List(),
     methods = List(
-      Method("succ", "Nat", List(), New("Succ", List(Var("this"))))
-    )
-  )
-
-  val Zero = Class("Zero", "Nat",
-    methods = List(
+      Method("succ", "Nat", List(), New("Succ", List(Var("this")))),
       Method("plus", "Nat", List(Argument("n", "Nat")), Var("n"))
     )
   )
+
+  val Zero = Class("Zero", "Nat")
 
   val Succ = Class("Succ", "Nat",
     fields = List(
@@ -32,6 +29,8 @@ object Numbers extends App {
   val ct = buildClassTable(List(Nat, Zero, Succ))
 
   ct.values.foreach(println)
+
+  ct.values.foreach(clz => println(s"class ${clz.name} types: ${fj.Types.classTypes(clz.name)(ct)}"))
 
   val zero = New("Zero")
   val one = New("Succ", List(zero))

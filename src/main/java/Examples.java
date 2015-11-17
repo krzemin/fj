@@ -1,5 +1,19 @@
 
 
+//class N {
+//    N succ() { return new S(this); }
+//}
+//
+//class Z extends N {
+//    N plus(N n) { return n; }
+//}
+//
+//class S extends N {
+//    N p;
+//    S(N p) { this.p = p; }
+//    Nat plus(N n) { return this.p.plus(n.succ());}
+//}
+
 class Summable<X extends Object> extends Object {
     X plus(X other) { return other; }
 }
