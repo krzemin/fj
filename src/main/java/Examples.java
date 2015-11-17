@@ -60,7 +60,7 @@ class Cons<X extends Summable<X>> extends List<X> {
     X sum(X zero) { return this.tail.sum(zero).plus(head); }
 
     <Y extends Summable<Y>> List<Y> map(UnaryFunc<X, Y> f) {
-        return new Cons<Y>(f.apply(head), this.tail.map(f));
+        return new Cons<Y>(f.apply(this.head), this.tail.map(f));
     }
 
     public String toString() { return head.toString() + " :: " + tail.toString(); }

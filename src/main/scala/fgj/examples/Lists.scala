@@ -157,7 +157,9 @@ object Lists extends App {
   println(fj.Eval.evalProg(p2e))
 
   val p3 = Program(ct, Invoke(mapped, "sum", List(), List(zero)))
+  println(p3.main)
   val p3e = eraseProgram(p3)
+  println(p3e.main)
   println(fj.Types.programType(p3e))
   println(fj.Eval.evalProg(p3e))
 
