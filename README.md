@@ -93,10 +93,10 @@ new Pair(new B(), new B())
 In FJ we have 5 types of expressions, which can appear in methods body:
 
 * *variable access* - `newfst` or reference to `this`
-* object construction - `new A()`, `new B()` or `new Pair(newfst, this.snd)`
-* field access - in `this.snd` expression we accessing field named `snd` on the object reffered by variable `this`
-* method invocation - `e3.setfst(e4)` this is example of invocation of method `setfst` on object `e3` with single argument `e4`
-* casts - `(A)(new Pair(new A(), new B()).fst)` is example of type cast used to recover type information about `fst` field
+* *object construction* - `new A()`, `new B()` or `new Pair(newfst, this.snd)`
+* *field access* - in `this.snd` expression we accessing field named `snd` on the object reffered by variable `this`
+* *method invocation* - `e3.setfst(e4)` this is example of invocation of method `setfst` on object `e3` with single argument `e4`
+* *casts* - `(A)(new Pair(new A(), new B()).fst)` is example of type cast used to recover type information about `fst` field
 
 
 ## Extending with generic types
