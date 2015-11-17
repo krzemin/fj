@@ -31,11 +31,11 @@ object AST {
   }
 
   case class Class(name: TypeName,
-                   baseClassName: TypeName,
+                   baseClass: TypeName,
                    fields: List[Field] = Nil,
                    methods: List[Method] = Nil) {
     override def toString =
-      s"class $name extends $baseClassName { " +
+      s"class $name extends $baseClass { " +
         s"${fields.map(_.toString).mkString(" ")} " +
         s"${methods.map(_.toString).mkString(" ")} }"
   }

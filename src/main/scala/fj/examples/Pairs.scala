@@ -11,7 +11,7 @@ object Pairs extends App {
   val B = Class("B", "Object")
   val Pair = Class(
     name = "Pair",
-    baseClassName = "Object",
+    baseClass = "Object",
     fields = List(
       Field("fst", "Object"),
       Field("snd", "Object")

@@ -22,7 +22,7 @@ object Types {
   def isSubtype(t: TypeName, u: TypeName)(ct: ClassTable): Boolean =
     if(t == "Object") u == "Object"
     else (t == u) || {
-      val tBase = ct(t).baseClassName
+      val tBase = ct(t).baseClass
       isSubtype(tBase, u)(ct)
     }
 
@@ -76,7 +76,7 @@ object Types {
     val method = ct(className).methods.find(_.name == name).head
     val mParams = method.args.map(arg => arg.name -> SimpleType(arg.argType))
     val newG = mParams.toMap + ("this" -> SimpleType(className))
-    val d = ct(className).baseClassName
+    val d = ct(className).baseClass
     exprType(method.body)(newG, ct) match {
       case None =>
         false

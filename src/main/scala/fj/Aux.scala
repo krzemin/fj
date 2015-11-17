@@ -11,7 +11,7 @@ object Aux {
     if (className == "Object") Nil
     else {
       val classDef = cm(className)
-      fields(classDef.baseClassName)(cm) ++ classDef.fields
+      fields(classDef.baseClass)(cm) ++ classDef.fields
     }
 
   def mtype(methodName: VarName, className: TypeName)(cm: ClassTable): Option[MethodType] =
@@ -22,7 +22,7 @@ object Aux {
         val resType = SimpleType(method.resultType)
         Some(MethodType(argTypes, resType))
       case None =>
-        mtype(methodName, cm(className).baseClassName)(cm)
+        mtype(methodName, cm(className).baseClass)(cm)
     }
 
   def mbody(methodName: VarName, c: TypeName)(cm: ClassTable): Method =
@@ -30,7 +30,7 @@ object Aux {
       case Some(method) =>
         method
       case None =>
-        mbody(methodName, cm(c).baseClassName)(cm)
+        mbody(methodName, cm(c).baseClass)(cm)
     }
 
 }
