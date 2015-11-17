@@ -5,7 +5,7 @@ Certain class-based programming languages provide concept of generic types. This
 There are several possible implementations of generics, including:
 
  * *type passing* - it preserves information about type parameters at runtime, which allows to distinguish for example `List<Integer>` from `List<String>`; this implementation is chosen in *.NET* languages like *C#*
- * *type instantiating* - for every instantiation of parametrized class with actual type arguments, there is separate class generated, which maintains no information about generic types -- for example `List_Integer` and `List_String`; still we can distinguish between them; this implementation is present in *C++* language
+ * *type instantiating* - for every instantiation of parametrized class with actual type arguments, there is separate class generated, which maintains no information about generic types - for example `List_Integer` and `List_String`; still we can distinguish between them; this implementation is present in *C++* language
  * *type erasure* - it eliminates informations about type parameters at compilation time, replacing them with their so-called *type bounds*; at runtime we have only single `List` class which can hold any elements; we cannot distinguish lists of integers from lists of string in this implementation; type erasure is used by *Java* language
 
 In this article we will review implementation of two small programming languages that imitate subsets of Java, being syntactically compatible with full language. They were defined in whitepaper by A. Igarashi, B. C. Pierce and P. Wadler titled [*Featherweight Java: A Minimal Core Calculus for Java and GJ*](http://www.cis.upenn.edu/~bcpierce/papers/fj-toplas.pdf). There two languages are:
@@ -92,11 +92,11 @@ new Pair(new B(), new B())
 
 In FJ we have 5 types of expressions, which can appear in methods body:
 
-* *variable access* -- `newfst` or reference to `this`
-* object construction -- `new A()`, `new B()` or `new Pair(newfst, this.snd)`
-* field access -- in `this.snd` expression we accessing field named `snd` on the object reffered by variable `this`
-* method invocation -- `e3.setfst(e4)` this is example of invocation of method `setfst` on object `e3` with single argument `e4`
-* casts -- `(A)(new Pair(new A(), new B()).fst)` is example of type cast used to recover type information about `fst` field
+* *variable access* - `newfst` or reference to `this`
+* object construction - `new A()`, `new B()` or `new Pair(newfst, this.snd)`
+* field access - in `this.snd` expression we accessing field named `snd` on the object reffered by variable `this`
+* method invocation - `e3.setfst(e4)` this is example of invocation of method `setfst` on object `e3` with single argument `e4`
+* casts - `(A)(new Pair(new A(), new B()).fst)` is example of type cast used to recover type information about `fst` field
 
 
 ## Extending with generic types
@@ -118,7 +118,7 @@ class Pair<X extends Object, Y extends Object> extends Object {
 
 The syntax is extended with:
 
-* type parameters lists for classes and methods -- in the example above `X` and `Y` are type parameters for class `Pair`, while `Z` is type paramether of method `setfst`
+* type parameters lists for classes and methods - in the example above `X` and `Y` are type parameters for class `Pair`, while `Z` is type paramether of method `setfst`
 * every type parameter has to be bounded by some actual class type, possibly parametrized with type variables (e.g. `X extends C<X>`)
 * in contrast to Java we always write the bound even if it is *Object*
 * object construction and method invocation both take type arguments list like `new Pair<Z, Y>(...)` ot `.setfst<B>(...)`, but empty parameter lists (`<>`) can be omitted
@@ -434,10 +434,10 @@ Erasure-related code is contained in `src/main/scala/erasure` directory.
 
 The technical idea of type erasure is to translate *FGJ* programs into *FJ* ones. To perform that task, we have to define erasure for all parts of our programs. Wanting to adopt erasure rules from *FJ* paper, several functions are defined, to translate:
 
-* FGJ types to FJ types -- `erasure.Erasure.eraseType`
-* FGJ expressions to FJ expression -- `erasure.Erasure.eraseExpr`
-* FGJ classes to FJ classes -- `erasure.Erasure.eraseClass`
-* and finally we have auxilliary function which merge results and translate a whole FGJ program to FJ program -- `erasure.Erasure.eraseProgram`
+* FGJ types to FJ types - `erasure.Erasure.eraseType`
+* FGJ expressions to FJ expression - `erasure.Erasure.eraseExpr`
+* FGJ classes to FJ classes - `erasure.Erasure.eraseClass`
+* and finally we have auxilliary function which merge results and translate a whole FGJ program to FJ program - `erasure.Erasure.eraseProgram`
 
 ### Examples
 
@@ -470,7 +470,7 @@ class Succ extends Nat {
 }
 ```
 
-We introduced class `Summable<X>` which have one method `plus`. In Java we would probably make this class an interface, but in *FGJ* we don't have interfaces, so we have to provide default implementation returning some value of type `X`. Fortunately we have parameter of type `X`, so we use it as a return value. It turns out that it is still valid implementation of `plus` for class `Zero`, so we don't have to re-implement it there. We made our `Nat` class a subclass of `Summable<Nat>`. For class `Succ` implementation of `plus` is the same as before. Spot another slight difference in return type of `succ` method in class `Nat` -- now it is declared to be `Succ`; we will need that to demonstrate erasure of covariant method overriding in result type in one of the following examples.
+We introduced class `Summable<X>` which have one method `plus`. In Java we would probably make this class an interface, but in *FGJ* we don't have interfaces, so we have to provide default implementation returning some value of type `X`. Fortunately we have parameter of type `X`, so we use it as a return value. It turns out that it is still valid implementation of `plus` for class `Zero`, so we don't have to re-implement it there. We made our `Nat` class a subclass of `Summable<Nat>`. For class `Succ` implementation of `plus` is the same as before. Spot another slight difference in return type of `succ` method in class `Nat` - now it is declared to be `Succ`; we will need that to demonstrate erasure of covariant method overriding in result type in one of the following examples.
 
 Let's use function `erasure.Erasure.eraseClass` to generate erasure for these classes.
 
@@ -500,7 +500,7 @@ class Succ extends Nat {
 
 What did the erasure change here?
 
-* in class `Summable` type parameters list was removed and all type variables were replaced with `Object` -- which was declared bound for `X` variable (see `X extends Object` in original class
+* in class `Summable` type parameters list was removed and all type variables were replaced with `Object` - which was declared bound for `X` variable (see `X extends Object` in original class
 * class `Nat` now extends our erased `Summable` class
 * according to `plus` method signature change in `Summable`, signature of `plus` in `Succ` class were adjusted to be identical (modulo argument names); to recover information about types, two casts to `Nat` were inserted: first over the access to `n'` variable, second over the invocation of method `plus` which happened to return natural number in generic version
 
@@ -520,7 +520,7 @@ Now, our `plus` method returns an `Object`, but type erasure was smart enough to
 
 #### Example #2 - summable lists
 
-Let's review another example -- lists which can contain some summable elements and are able to compute total `sum` of all their elements.
+Let's review another example - lists which can contain some summable elements and are able to compute total `sum` of all their elements.
 
 ```java
 class List<X extends Summable<X>> extends Object {
@@ -546,8 +546,8 @@ class Cons<X extends Summable<X>> extends List<X> {
 
 We have base `List<X>` class and its two subclasses:
 
-* `Nil` -- corresponding to empty list
-* `Cons` -- list constructor which holds single element `head` of type `X` and rest of list -- `tail` of type `List<X>`
+* `Nil` - corresponding to empty list
+* `Cons` - list constructor which holds single element `head` of type `X` and rest of list - `tail` of type `List<X>`
 
 For example list `[1, 0]` can be encoded as following expression:
 
@@ -555,7 +555,7 @@ For example list `[1, 0]` can be encoded as following expression:
 new Cons<Nat>(new Succ(new Zero()), new Cons<Nat>(new Zero(), new Nil<Nat>()))
 ```
 
-Method `sum` takes parameter `zero` which will be summed with all elements of our list. Overriden occurence uses recursive call first to compute sum of `tail` (it will return `X`) and invoke method `plus` adding `head` element to the sum. Notice that in this example class there is no any occurrence of classes `Nat`, `Zero` or `Succ` -- we were able to express `sum` operation on list using only abstract `plus` which we defined for summables.
+Method `sum` takes parameter `zero` which will be summed with all elements of our list. Overriden occurence uses recursive call first to compute sum of `tail` (it will return `X`) and invoke method `plus` adding `head` element to the sum. Notice that in this example class there is no any occurrence of classes `Nat`, `Zero` or `Succ` - we were able to express `sum` operation on list using only abstract `plus` which we defined for summables.
 
 > You can consider to make a `List` class subtype of `Summable`.
 > 1. What is the meaning of `plus` regarding to lists?
@@ -585,7 +585,7 @@ class Cons extends List {
 }
 ```
 
-Again, all type parameters were removed and occurrences of all type variables were replaced with `Summable`. Erasure is optimized in that way that it doesn't insert casts, if they are not necessary -- see implementations of `sum` method and references to `zero'` argument which are not casted. The only cast we need to insert is around invocation of `plus` method from `Summable`, which still returns `Object`.
+Again, all type parameters were removed and occurrences of all type variables were replaced with `Summable`. Erasure is optimized in that way that it doesn't insert casts, if they are not necessary - see implementations of `sum` method and references to `zero'` argument which are not casted. The only cast we need to insert is around invocation of `plus` method from `Summable`, which still returns `Object`.
 
 Having the context of `Nat` and `List` classes, let's consider such expression:
 
@@ -649,7 +649,7 @@ class TwicePlus1 extends UnaryFunc<Nat, Nat> {
 }
 ```
 
-Class `TwicePlus1` represents that function by replacing multiplication by 2 with addition of arguments and incrementation by calling `succ`. Notice that since for every natural argument, result of such a function will be positive number, we can encode it within type system by declaring result as `Succ` type, while still passing `Nat` as second type argument to `UnaryFunc`. This is demonstration of aforementioned *covariant method overriding* in *FGJ* -- we can declare result type of overriden method as a subtype of result of method declared in super class, even if this type was a type variable -- we can now see that subtyping takes care of resolving type variables and  actual type arguments passed; that's the reason why we need contexts *Δ*.
+Class `TwicePlus1` represents that function by replacing multiplication by 2 with addition of arguments and incrementation by calling `succ`. Notice that since for every natural argument, result of such a function will be positive number, we can encode it within type system by declaring result as `Succ` type, while still passing `Nat` as second type argument to `UnaryFunc`. This is demonstration of aforementioned *covariant method overriding* in *FGJ* - we can declare result type of overriden method as a subtype of result of method declared in super class, even if this type was a type variable - we can now see that subtyping takes care of resolving type variables and  actual type arguments passed; that's the reason why we need contexts *Δ*.
 
 Let's review erasure of classes `UnaryFunc` and `TwicePlus1`.
 
@@ -670,7 +670,7 @@ class TwicePlus1 extends UnaryFunc {
 }
 ```
 
-The same as before, generic types were removed from our classes and replaced with their bounds -- `Object`s. Covariant method overriding is not present in *FJ*, so erasure had to ensure that types in methods signatures in both classes are identical. Proper casts were inserted in overriden method `apply`:
+The same as before, generic types were removed from our classes and replaced with their bounds - `Object`s. Covariant method overriding is not present in *FJ*, so erasure had to ensure that types in methods signatures in both classes are identical. Proper casts were inserted in overriden method `apply`:
 
  * two casts around reference to the variable *n'* - to recapture its type, which was `Nat` in example with generic types
  * cast to `Nat` around invocation of method `plus`, as well in previous examples
@@ -766,10 +766,10 @@ There are some technical difficulties in proving second theorem, connected with 
 
 # Conclusion
 
-We have discussed one of possible implementation of generic types -- *type erasure*. There are several known problems in languages or development platforms built on top of idea of erasing generic types, amongst which the most popular is *JVM*. Deep understanding of pure idea and ability to review (although simplified, yet) actual implementation will allow you to better understand consequences of the limitations and their real roots. 
+We have discussed one of possible implementation of generic types - *type erasure*. There are several known problems in languages or development platforms built on top of idea of erasing generic types, amongst which the most popular is *JVM*. Deep understanding of pure idea and ability to review (although simplified, yet) actual implementation will allow you to better understand consequences of the limitations and their real roots. 
 
 # Resources
 
-* A. Igarashi, B. C. Pierce, P. Wadler -- [Featherweight Java: A Minimal Core Calculus for Java and GJ](http://www.cis.upenn.edu/~bcpierce/papers/fj-toplas.pdf)
+* A. Igarashi, B. C. Pierce, P. Wadler - [Featherweight Java: A Minimal Core Calculus for Java and GJ](http://www.cis.upenn.edu/~bcpierce/papers/fj-toplas.pdf)
 * [my slides](http://www.ii.uni.wroc.pl/~dabi/courses/PJZO14/pkrzeminski/fj.pdf) from presentation at  PZJO14 seminary at University of Wrocław
 
