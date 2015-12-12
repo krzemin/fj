@@ -40,7 +40,7 @@ action.
 \section{Introduction}
 
 Certain class-based programming languages provide concept of generic
-types. This enables parametrizing classes with type parameters.
+types. This enables parameterizing classes with type parameters.
 Such a feature makes possible writing polymorphic code which can
 work with arbitrary actual type arguments. One of the key applications
 of generic types we can found in standard libraries, e.g.
@@ -60,7 +60,7 @@ There are several possible implementations of generics, including:
   \emph{C\#}
 
 \item{\textbf{type instantiating}} -- for every instantiation of
-  parametrized class with actual type arguments, there is separate
+  parameterized class with actual type arguments, there is separate
   class generated, which maintains no information about generic
   types -- for example \textbf{List\$Integer} and \textbf{List\$String};
   we can still distinguish between them, but no type parameter
@@ -86,7 +86,7 @@ syntactically compatible with full language, defined in
 \item{\textbf{FJ}} -- minimal subset of Java with classes,
 fields and methods only
 \item{\textbf{FGJ}} -- the language extended with
-type-parametrized classes and methods.
+type-parameterized classes and methods.
 \end{itemize}
 
 
@@ -117,7 +117,7 @@ which are not. Trying to model full Java in such a way would result
 enormous calculus being hard to grasp. Therefore
 \emph{Featherweight Java} favours compactness over completeness
 providing only few combinators, while still being legal subset
-of Java, only little larger than original $\lambda$ calculus.
+of Java, only little larger than the original $\lambda$-calculus.
 \\
 \\
 To achieve simplicity, language is heavily reduced. It means:
@@ -241,10 +241,10 @@ The syntax is extended with:
 \begin{itemize}
 \item type parameters lists for classes and methods -- in the example
   above \texttt{X} and \texttt{Y} are type parameters for class
-  \texttt{Pair}, while \texttt{Z} is type paramether of method
+  \texttt{Pair}, while \texttt{Z} is type parameter of method
   \texttt{setfst}
 \item every type parameter has to be bounded by some actual class
-  type, possibly parametrized with type variables (e.g.
+  type, possibly parameterized with type variables (e.g.
   \texttt{X extends C<X>})
 \item in contrast to Java we always write the bound even if it
   is \texttt{Object}
@@ -440,11 +440,11 @@ When some error configuration is detected, we simply throw
 about result we computed so far.
 
 The evaluator is rather simple adaptation of reduction rules to
-\emph{call by value} strategy. You can find it at
+\emph{call by value} strategy. It can be found at
 \texttt{fj.Eval.evalExpr} for evaluation expressions in given
-context (i.e. class table) and auxilliary \texttt{fj.Eval.evalProg}
-which takes program, builds class table and evaluates its
-main expression.
+context (i.e. class table) and auxilliary function
+\texttt{fj.Eval.evalProg} which takes program, builds class table
+and evaluates its main expression.
 
 \subsubsection{Running examples}
 
@@ -463,10 +463,10 @@ sbt "runMain fj.examples.Pairs"
 Let's encode some more interesing program in our language. In
 \emph{FJ} we don't have primitive types, especially numbers.
 But there is a way to encode natural numbers using just classes
-and objects, similarly to \emph{Church numerals} in $\lambda$
-calculus, but instead of folding functions, we will fold objects
-of class \texttt{Succ} $n$ times over the instance of class
-\texttt{Zero} to represent number $n$.
+and objects, similarly to \emph{Church numerals} in
+the $\lambda$-calculus, but instead of folding functions, we
+will fold objects of class \texttt{Succ} $n$ times over the
+instance of class \texttt{Zero} to represent number $n$.
 
 \begin{minted}[mathescape]{scala}
 class Nat extends Object {
@@ -492,7 +492,7 @@ We represent 0 as \texttt{new Zero()},
 
 Addition is implemented as recursive function with base case
 at 0 (indeed, $0 + n = n$). Recursive step is in the class
-\texttt{Succ} -- it transform general addition $m + n$ into
+\texttt{Succ} -- it transforms general addition $m + n$ into
 $(m-1) + (n+1)$ until base case for $m = 0$ is reached.
 Method \texttt{succ} is implemented in class \texttt{Nat} as
 wrapping the actual number \texttt{this} into object of
@@ -541,7 +541,7 @@ case class ClassType(className: TypeName,
 
 We have new type alias \texttt{TypeVarName} for type variables
 (again, internally just strings). We have 2 form of types now:
-\emph{type variables} and \emph{class types} parametrized by
+\emph{type variables} and \emph{class types} parameterized by
 some number of types (which again can be type variables or
 class types).
 
@@ -573,18 +573,18 @@ case class Argument(name: VarName, argType: Type)
 of type variable, bounded by some class type. Notice that we
 can write recursive type expression in bounds
 (like \texttt{X extends C<X>}) thanks to that definition of class
-types, which are parametrized with arbitrary types.
+types, which are parameterized with arbitrary types.
 
-Classes are parametrized by a list of \emph{bounded parameters}.
+Classes are parameterized by a list of \emph{bounded parameters}.
 Notice change in \texttt{baseClass} signature which now is not
-only name reference, but is class type which can be parametrized
+only name reference, but is class type which can be parameterized
 with type variables, like in example below.
 
 \begin{minted}[mathescape]{scala}
 class List<X extends Object> extends Collection<X> { ... }
 \end{minted}
 
-Methods also can be parametrized with type variables. We can use
+Methods also can be parameterized with type variables. We can use
 them to encode method's return type and argument types.
 
 \texttt{ClassTable} and \texttt{Program} definitions are
@@ -670,7 +670,7 @@ directory.
 
 \subsubsection{Overview}
 
-The technical idea of type erasure is to translate \emph{FGJ}
+The general idea of type erasure is to translate \emph{FGJ}
 programs into \emph{FJ} ones. To perform that task, we have to
 define erasure for all parts of our programs. Wanting to adopt
 erasure rules from \cite{fj}, several functions are defined, to
@@ -1031,7 +1031,7 @@ class Cons<X extends Summable<X>> extends List<X> {
 }
 \end{minted}
 
-In base class we added method \texttt{map} parametrized with
+In base class we added method \texttt{map} parameterized with
 type parameter \texttt{Y} which takes unary function and simply
 constructs empty list of summables \texttt{Y}. In \texttt{Cons}
 we return new list with function \texttt{f} applied to the
