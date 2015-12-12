@@ -7,6 +7,10 @@
 \marginsize{2.0cm}{2.0cm}{2.0cm}{2.0cm}
 \usepackage[hidelinks]{hyperref}
 \usepackage{minted}
+\usepackage{tcolorbox}
+\usepackage{etoolbox}
+\BeforeBeginEnvironment{minted}{\begin{tcolorbox}}
+\AfterEndEnvironment{minted}{\end{tcolorbox}}
 \usemintedstyle{friendly}
 \usepackage{upquote}
 \expandafter\def\csname PYGdefault@tok@err\endcsname{\def\PYGdefault@bc##1{{\strut ##1}}}
