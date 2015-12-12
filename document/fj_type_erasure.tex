@@ -4,13 +4,15 @@
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage{anysize}
-\marginsize{2.0cm}{2.0cm}{2.0cm}{2.0cm}
+\marginsize{1.8cm}{1.8cm}{1.8cm}{1.8cm}
 \usepackage[hidelinks]{hyperref}
 \usepackage{minted}
 \usepackage{tcolorbox}
 \usepackage{etoolbox}
-\BeforeBeginEnvironment{minted}{\begin{tcolorbox}[colback=white,arc=0mm]}
-\AfterEndEnvironment{minted}{\end{tcolorbox}}
+\BeforeBeginEnvironment{minted}
+  {\begin{tcolorbox}[colback=white,arc=0mm,enlarge top by=1mm,enlarge bottom by=1mm,enlarge left by=8mm,width=\linewidth-16mm]}
+\AfterEndEnvironment{minted}
+  {\end{tcolorbox}}
 \usemintedstyle{friendly}
 \usepackage{upquote}
 \expandafter\def\csname PYGdefault@tok@err\endcsname{
@@ -31,7 +33,9 @@ classes with fields and methods and \emph{FGJ} extending the first
 one with generic types. Type erasure is expressed as a translation
 from \emph{FGJ} to \emph{FJ}, which preserves appropriate properties
 around type-checking and evaluation semantics. In this article
-we review implementation of these calculi realized in \emph{Scala},
+we review implementation\footnote{The implementation is available
+at \url{https://github.com/krzemin/type_erasure_featherweight_java}}
+of these calculi realized in \emph{Scala},
 provided with comprehensive examples demonstrating type erasure in
 action.
 \end{abstract}
@@ -43,8 +47,8 @@ Certain class-based programming languages provide concept of generic
 types. This enables parameterizing classes with type parameters.
 Such a feature makes possible writing polymorphic code which can
 work with arbitrary actual type arguments. One of the key applications
-of generic types we can found in standard libraries, e.g.
-collections and algorithms working with them. For example,
+of generic types we can found in standard libraries, e.g.,
+collections and algorithms working with them. For example, a
 sorting algorithm can be implemented once as a function taking some
 collection of comparable elements and invoked for lists, vectors
 or arrays.
@@ -244,8 +248,8 @@ The syntax is extended with:
   \texttt{Pair}, while \texttt{Z} is type parameter of method
   \texttt{setfst}
 \item every type parameter has to be bounded by some actual class
-  type, possibly parameterized with type variables (e.g.
-  \texttt{X extends C<X>})
+  type, possibly parameterized with type variables, e.g.,
+  \texttt{X extends C<X>}
 \item in contrast to Java we always write the bound even if it
   is \texttt{Object}
 \item object construction and method invocation both take
@@ -450,8 +454,8 @@ and evaluates its main expression.
 
 \begin{minted}[mathescape]{scala}
 println(program.main) // prints: new Pair(new A(), new B()).setfst(new B())
-val programT = programType(program) // computes to Some(Pair) - type of main expression
-val result = evalProg(program) // computes to New("Pair", List(New("B"), New("B")))
+val programT = programType(program) // Some(Pair) - type of main expression
+val result = evalProg(program) // New("Pair", List(New("B"), New("B")))
 println(result) // prints: new Pair(new B(), new B())
 \end{minted}
 Similar example can be run from console by typing:
