@@ -9,7 +9,7 @@
 \usepackage{minted}
 \usepackage{tcolorbox}
 \usepackage{etoolbox}
-\BeforeBeginEnvironment{minted}{\begin{tcolorbox}}
+\BeforeBeginEnvironment{minted}{\begin{tcolorbox}[colback=white,arc=0mm]}
 \AfterEndEnvironment{minted}{\end{tcolorbox}}
 \usemintedstyle{friendly}
 \usepackage{upquote}
@@ -28,7 +28,7 @@ type system. It provides two calculi named \emph{FJ} -- for plain classes with f
 one with generic types. Type erasure is expressed as a translation
 from \emph{FGJ} to \emph{FJ}, which preserves appropriate properties
 around type-checking and evaluation semantics. In this article
-we review implementation of these calculi reazlied in \emph{Scala}, provided with comprehensive examples demonstrating type erasure in action.
+we review implementation of these calculi realized in \emph{Scala}, provided with comprehensive examples demonstrating type erasure in action.
 \end{abstract}
 
 
