@@ -133,7 +133,7 @@ Compactness of the \emph{FJ} is achieved by reducing the language
 heavily. It comes down to:
 
 \begin{itemize}
-\item no concurrency primitives like \texttt{synchronized} keyword, \emph{wait} or \emph{notify}
+\item no concurrency primitives like \texttt{synchronized} keyword
 \item no reflection
 \item no interfaces
 \item no method overloading
@@ -158,7 +158,8 @@ Instead, we focus only on minimal language subset, including:
 
 \subsection{Syntax}
 
-Let's start with a simple example.
+Let's start with a simple example -- an immutable \texttt{Pair} class
+definition.
 
 \begin{minted}[mathescape]{java}
 class A extends Object {
@@ -178,6 +179,26 @@ class Pair extends Object {
   }
 }
 \end{minted}
+
+\emph{FJ} is a class-based language where we can define classes like in
+Java, but satisfying some constraints:
+
+\begin{itemize}
+\item we always write the super class name, even if it's trivial
+  (\texttt{Object})
+\item we always write the receiver of field or method, even if it's
+  trivial (\texttt{this})
+\item \texttt{this} is simply a variable rather than a keyword, unlike
+  in full Java
+\item we always write constructor which initializes all fields
+  defined in that class and call \texttt{super} which refers to the
+  super class constructor, which initializes its fields, etc...
+\item constructors are the only place where \texttt{super} or
+  \texttt{=} appears
+\end{itemize}
+
+\subsubsection{Expressions}
+
 In FJ we have 5 types of expressions, which can appear in methods body:
 
 \begin{itemize}
@@ -185,44 +206,27 @@ In FJ we have 5 types of expressions, which can appear in methods body:
   \texttt{this}
 \item{\textbf{object construction}} -- \texttt{new A()},
   \texttt{new B()} or \texttt{new Pair(newfst, this.snd)}
-\item{\textbf{field access}} -- in \texttt{this.snd} expression we
-  accessing field named \texttt{snd} on the object reffered by
-  variable \texttt{this}
-\item{\textbf{method invocation}} -- \texttt{e3.setfst(e4)} this
-  is example of invocation of method \texttt{setfst} on object
+\item{\textbf{field access}} -- in \texttt{this.snd} expression 
+  a field named \texttt{snd} is accessed on the object reffered by
+  a variable \texttt{this}
+\item{\textbf{method invocation}} -- \texttt{e3.setfst(e4)}
+  is an example of invocation of method \texttt{setfst} on object
   \texttt{e3} with single argument \texttt{e4}
 \item{\textbf{casts}} -- \texttt{(A)(new Pair(new A(), new B()).fst)}
-  is example of type cast used to recover type information about
+  is an example of type cast used to recover type information about
   \texttt{fst} field
-\end{itemize}
-\emph{FJ} is class-based language where we can define classes like in
-Java, but satisfying some constraints:
-
-\begin{itemize}
-\item we always write super class name, even if it's trivial
-  (\texttt{Object})
-\item we always write receiver of field or method, even if it's
-  trivial (\texttt{this})
-\item \texttt{this} is simply variable rather than a keyword, unlike
-  to full Java
-\item we always write constructor which initialize all fields
-  defined in that class and call \texttt{super} which refers to super
-  class constructor, which initializes its fields, etc...
-\item constructors are only place where \texttt{super} or
-  \texttt{=} appears
 \end{itemize}
 
 \subsubsection{Programs}
 
-In \emph{FJ}, programs consist of class table and expression to be
-evaluated, which correspond to static \texttt{main} method in
-executable Java classes. We intuitively expect that such an
-expression:
+In \emph{FJ}, programs consist of a class table and an expression
+to be evaluated, which corresponds to static \texttt{main} method in
+executable Java classes. We intuitively expect that an expression
 
 \begin{minted}[mathescape]{java}
 new Pair(new A(), new B()).setfst(new B())
 \end{minted}
-will evaluate to:
+...will eventually evaluate to
 \begin{minted}[mathescape]{java}
 new Pair(new B(), new B())
 \end{minted}
@@ -230,9 +234,10 @@ new Pair(new B(), new B())
 
 \subsection{Extending with generic types}
 
-Let's back to our example implementation of \texttt{Pair} class and
-add generic type parameters \texttt{X} and \texttt{Y} as
-\texttt{first} and \texttt{second} field types.
+Let's extend the \emph{FJ} calculus with generic types. We parameterize
+class \texttt{Pair} with two type parameters \texttt{X} and \texttt{Y}.
+Using them, we encode types of fields \texttt{fst} and \texttt{snd},
+accordingly.
 
 \begin{minted}[mathescape]{java}
 class Pair<X extends Object, Y extends Object> extends Object {
@@ -246,12 +251,12 @@ class Pair<X extends Object, Y extends Object> extends Object {
   }
 }
 \end{minted}
-The syntax is extended with:
+More generally, the syntax is extended with:
 
 \begin{itemize}
 \item type parameters lists for classes and methods -- in the example
   above \texttt{X} and \texttt{Y} are type parameters for class
-  \texttt{Pair}, while \texttt{Z} is type parameter of method
+  \texttt{Pair}, while \texttt{Z} is a type parameter of method
   \texttt{setfst}
 \item every type parameter has to be bounded by some actual class
   type, possibly parameterized with type variables, e.g.,
@@ -263,12 +268,12 @@ The syntax is extended with:
   \texttt{.setfst<B>(...)}, but empty parameter lists (\texttt{<>})
   can be omitted
 \end{itemize}
-Our refined program looks as follows.
+Our refined example program looks as follows.
 
 \begin{minted}[mathescape]{java}
 new Pair<A,B>(new A(), new B()).setfst<B>(new B())
 \end{minted}
-And it evaluates to expression:
+And it evaluates to expression
 \begin{minted}[mathescape]{java}
 new Pair<B,B>(new B(), new B())
 \end{minted}
@@ -278,9 +283,9 @@ new Pair<B,B>(new B(), new B())
 We can express type erasure as compilation from \emph{FGJ} syntax
 to \emph{FJ} by replacing all type variables with their bounds
 and inserting some number of casts, when needed to smartly recover
-type information from original \emph{FGJ} code. The example class
-\texttt{Pair<X, Y>} after erasure looks exactly like previous
-\texttt{Pair} class without generic types. Similarly, following
+type information from the original \emph{FGJ} code. The example class
+\texttt{Pair<X, Y>} after erasure looks exactly like the previous
+\texttt{Pair} class without generic types. Similarly, the following
 expression:
 \begin{minted}[mathescape]{java}
 new Pair<A,B>(new A(), new B()).snd
@@ -291,7 +296,7 @@ erases to:
 \end{minted}
 Notice that the cast to \texttt{B} was inserted to restore type
 of \texttt{snd} field which is annotated with type \texttt{Object}
-in erased \texttt{Pair}.
+in the erased \texttt{Pair}.
 
 \section{Implementation review}
 
