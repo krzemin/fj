@@ -27,31 +27,31 @@
 
 
 \begin{abstract}
-Featherweight Java is a minimal core calculus describing Java language
-type system. It provides two calculi named \emph{FJ} -- for plain
-classes with fields and methods and \emph{FGJ} extending the first
-one with generic types. Type erasure is expressed as a translation
-from \emph{FGJ} to \emph{FJ}, which preserves appropriate properties
-around type-checking and evaluation semantics. In this article
-we review implementation\footnote{The implementation is available
+Featherweight Java is a minimal core calculus describing the Java
+language type system. It provides two calculi named \emph{FJ} --
+for plain classes with fields and methods, and \emph{FGJ} -- extending
+the first one with generic types. Type erasure is expressed as
+a translation from \emph{FGJ} to \emph{FJ} that preserves appropriate
+properties around type-checking and evaluation semantics. In this
+article we review implementation\footnote{The implementation is available
 at \url{https://github.com/krzemin/type_erasure_featherweight_java}}
-of these calculi realized in \emph{Scala},
-provided with comprehensive examples demonstrating type erasure in
-action.
+of these calculi realized in \emph{Scala} and we provide comprehensive
+examples demonstrating type erasure in action.
 \end{abstract}
 
 
 \section{Introduction}
 
-Certain class-based programming languages provide concept of generic
-types. This enables parameterizing classes with type parameters.
-Such a feature makes possible writing polymorphic code which can
+Certain class-based programming languages provide a concept of generic
+types. It enables parameterizing classes with type parameters.
+Such a feature makes it possible to write polymorphic code that can
 work with arbitrary actual type arguments. One of the key applications
-of generic types we can found in standard libraries, e.g.,
-collections and algorithms working with them. For example, a
-sorting algorithm can be implemented once as a function taking some
-collection of comparable elements and invoked for lists, vectors
-or arrays.
+of generic types can be found in standard libraries, e.g.,
+collections and algorithms working with them. For instance, a
+sorting algorithm can be implemented as a function taking
+collection of elements and returning sorted collection, with no
+particular concern about type of elements inside the collection, as
+soon as it knows how to compare them.
 
 There are several possible implementations of generics, including:
 
@@ -64,8 +64,8 @@ There are several possible implementations of generics, including:
   \emph{C\#}
 
 \item{\textbf{type instantiating}} -- for every instantiation of
-  parameterized class with actual type arguments, there is separate
-  class generated, which maintains no information about generic
+  parameterized class with actual type arguments, a separate
+  class is generated that maintains no information about generic
   types -- for example \textbf{List\$Integer} and \textbf{List\$String};
   we can still distinguish between them, but no type parameter
   information is present at runtime. This implementation is present
@@ -74,16 +74,16 @@ There are several possible implementations of generics, including:
 \item{\textbf{type erasure}} -- it eliminates information about
   type parameters at compilation time, replacing them with their
   so-called \emph{type bounds}; at runtime we have only single
-  \emph{List} class which can hold any elements; we cannot
-  distinguish lists of integers from lists of string in this
-  implementation. Type erasure is used by \emph{Java} language.
+  \textbf{List<Object>} class which can hold any elements; we cannot
+  distinguish lists of integers from lists of strings in this
+  implementation. Type erasure is used by the \emph{Java} language.
 
 \end{itemize}
 
 
 In this article we will review implementation of two small
 programming languages that imitate subsets of Java, being
-syntactically compatible with full language, defined in
+syntactically compatible with the full language, defined in
 \cite{fj}. These two languages are:
 
 \begin{itemize}
@@ -97,37 +97,43 @@ type-parameterized classes and methods.
 We will define syntax, look at the examples and express type
 erasure as translation from \emph{FGJ} to \emph{FJ} that
 preserves some important properties about types and behaviour.
-We will not explain all the details of erasure implementation,
-but instead will look at the example programs and their erased
-version to see type erasure in action. For those readers who
-are willing to deeper understand erasure rules, I encourage
-to read original paper, where they are clearly defined and
+We will not explain all the details of provided erasure
+implementation, but instead will look at the example programs
+and their erased version to see type erasure in action. Reading
+the \emph{Featherweight Java} paper is not absolutely required,
+although highly recommended for readers willing to deeper
+understand erasure rules, where they are clearly defined and
 comprehensively explained.
 
-The implementation is written in Scala 2.11. The only software
-that you should have installed in order run examples are
-\textbf{Java JDK}
-(\url{http://www.oracle.com/technetwork/java/javase/downloads/index.html})
-and \textbf{SBT} (\url{http://www.scala-sbt.org}).
+The implementation is written in Scala 2.11.
+\textbf{Java JDK}\footnote{
+\url{http://www.oracle.com/technetwork/java/javase/downloads/index.html}
+} and \textbf{SBT} \footnote{
+\url{http://www.scala-sbt.org}
+} are required to be installed in order to run the examples.
 
 \section{Featherweight Java}
 
+We start from introduction of the \emph{Featherweight Java} calculus at
+the abstract level and see how to encode simple programs in \emph{FJ}
+and \emph{FGJ}.
+
 \subsection{Idea}
 
-Looking for a tool to precise describing Java type system we need
+Looking for a tool to precise describing the Java type system, we need
 to focus on modelling only those parts of the language which are
-important from the type system perspective while ommiting those,
-which are not. Trying to model full Java in such a way would result
-enormous calculus being hard to grasp. Therefore
-\emph{Featherweight Java} favours compactness over completeness
-providing only few combinators, while still being legal subset
+important from the type system perspective while ommiting those
+which are not. Trying to model full Java in a formal way would result
+in an enormous calculus being hard to grasp. Therefore
+\emph{Featherweight Java} favours compactness over completeness,
+providing only few combinators, while still being a legal subset
 of Java, only little larger than the original $\lambda$-calculus.
-\\
-\\
-To achieve simplicity, language is heavily reduced. It means:
+
+Compactness of the \emph{FJ} is achieved by reducing the language
+heavily. It comes down to:
 
 \begin{itemize}
-\item no concurrency primitives
+\item no concurrency primitives like \texttt{synchronized} keyword, \emph{wait} or \emph{notify}
 \item no reflection
 \item no interfaces
 \item no method overloading
@@ -1087,14 +1093,15 @@ Erased version contains only topmost cast to \texttt{Nat}
 but we have concrete subclass here).
 
 \begin{minted}[mathescape]{java}
-(Nat)(new Cons(
-  new Succ(new Zero()),
+(Nat)(
   new Cons(
-    new Succ(new Succ(new Zero())),
-    new Nil()
-  )
-).map(new TwicePlus1(new Zero()))
- .sum(new Zero())
+    new Succ(new Zero()),
+    new Cons(
+      new Succ(new Succ(new Zero())),
+      new Nil()
+    )
+  ).map(new TwicePlus1(new Zero()))
+   .sum(new Zero())
 )
 \end{minted}
 
