@@ -122,7 +122,7 @@ and \emph{FGJ}.
 
 Looking for a tool to precise describing the Java type system, we need
 to focus on modelling only those parts of the language which are
-important from the type system perspective while ommiting those
+important from the type system perspective while omitting those
 which are not. Trying to model full Java in a formal way would result
 in an enormous calculus being hard to grasp. Therefore
 \emph{Featherweight Java} favours compactness over completeness,
@@ -195,7 +195,7 @@ Java, but satisfying some constraints:
   in full Java
 \item we always write constructor which initializes all fields
   defined in that class and call \texttt{super} which refers to the
-  super class constructor, which initializes its fields, etc...
+  super class constructor, which initializes its fields, etc.
 \item constructors are the only place where \texttt{super} or
   \texttt{=} appears
 \end{itemize}
@@ -210,7 +210,7 @@ In FJ we have 5 types of expressions, which can appear in methods body:
 \item{\textbf{object construction}} -- \texttt{new A()},
   \texttt{new B()} or \texttt{new Pair(newfst, this.snd)}
 \item{\textbf{field access}} -- in \texttt{this.snd} expression 
-  a field named \texttt{snd} is accessed on the object reffered by
+  a field named \texttt{snd} is accessed on the object referred by
   a variable \texttt{this}
 \item{\textbf{method invocation}} -- \texttt{e3.setfst(e4)}
   is an example of invocation of method \texttt{setfst} on object
@@ -438,7 +438,7 @@ finds concrete type of expression in given typing context $\Gamma$
 or indicates that the expression is incorrectly-typed. Context
 $\Gamma$ contains information about actual types of the available
 variables and is represented as \texttt{Map[VarName, SimpleType]}.
-There is also an auxilliary function \texttt{fj.Types.progType}
+There is also an auxiliary function \texttt{fj.Types.progType}
 that type-checks a whole program, ensuring that all classes, fields,
 methods are well-typed according to the typing rules, and returns
 type of the main expression.
@@ -525,7 +525,7 @@ Method \texttt{succ} is implemented in the base class
 \texttt{Nat} as wrapping the actual number \texttt{this}
 into object of \texttt{Succ} class.
 
-There is one subtelty connected with implementation of method
+There is one subtlety connected with implementation of method
 \texttt{plus}. Base case of recursion has to be implemented in
 the class \texttt{Nat} to satisfy type-checking of the
 \texttt{Succ} class. In the full Java we would probably
@@ -654,7 +654,7 @@ case class Cast(classType: ClassType,
                 expr: Expr) extends Expr
 \end{minted}
 
-Occurences of the \texttt{TypeName} in the classes \texttt{New}
+Occurrences of the \texttt{TypeName} in the classes \texttt{New}
 and \texttt{Cast} were replaced by a \texttt{ClassType}. It is possible
 to create an object \texttt{new Pair<X,Y>(...)}, but it's illegal
 to construct such an expression \texttt{new X()}, in the context
@@ -1146,7 +1146,7 @@ For all well-typed \emph{FGJ} class tables, they are well-typed
 after erasing under \emph{FJ} typing rules.
 \end{theorem}
 This property ensures us that the \emph{FGJ} is fully compatible
-superset of \emph{FJ} regarding typechecking.
+superset of \emph{FJ} regarding type-checking.
 
 \begin{theorem}[Erasure preserves execution results]
 If a well-typed \emph{FGJ} program evaluates to some value $w$
