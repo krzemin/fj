@@ -159,7 +159,10 @@ Instead, we focus only on minimal language subset, including:
 \subsection{Syntax}
 
 Let's start with a simple example -- an immutable \texttt{Pair} class
-definition.
+definition. We define two plain classes -- \texttt{A} and \texttt{B},
+and class \texttt{Pair} containing members \texttt{fst} and \texttt{snd}
+and method \texttt{setfst} that returns new instance of a
+pair with modified first element.
 
 \begin{minted}[mathescape]{java}
 class A extends Object {
@@ -219,14 +222,16 @@ In FJ we have 5 types of expressions, which can appear in methods body:
 
 \subsubsection{Programs}
 
-In \emph{FJ}, programs consist of a class table and an expression
-to be evaluated, which corresponds to static \texttt{main} method in
-executable Java classes. We intuitively expect that an expression
+\emph{FJ} programs consist of a class table and an expression
+to be evaluated, strictly corresponding to static \texttt{main} method in
+executable Java classes. We intuitively expect that in the context
+of previously defined classes \texttt{A}, \texttt{B} and \texttt{Pair},
+an expression
 
 \begin{minted}[mathescape]{java}
 new Pair(new A(), new B()).setfst(new B())
 \end{minted}
-...will eventually evaluate to
+will eventually evaluate to
 \begin{minted}[mathescape]{java}
 new Pair(new B(), new B())
 \end{minted}
@@ -237,7 +242,10 @@ new Pair(new B(), new B())
 Let's extend the \emph{FJ} calculus with generic types. We parameterize
 class \texttt{Pair} with two type parameters \texttt{X} and \texttt{Y}.
 Using them, we encode types of fields \texttt{fst} and \texttt{snd},
-accordingly.
+accordingly. Notice that in definition of method \texttt{setfst} we
+introduce another type parameter \texttt{Z}, which allows to return
+an instance of a pair with not only value of type \texttt{X} modified,
+but allowing also to change first element's type!
 
 \begin{minted}[mathescape]{java}
 class Pair<X extends Object, Y extends Object> extends Object {
