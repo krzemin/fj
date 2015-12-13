@@ -320,7 +320,7 @@ evaluator in \texttt{Eval.scala}.
 
 \subsubsection{Syntax}
 
-Classes, fields and methods are represented by following set of
+Classes, fields and methods are represented by the following set of
 case classes.
 
 \begin{minted}[mathescape]{scala}
@@ -345,10 +345,10 @@ case class Argument(name: VarName,
 \end{minted}
 
 We represent \emph{FJ} classes using 4 nested data structures
-which hold all necessary information about base classe, fields
+which hold all necessary information about base classes, fields
 and methods. There are type aliases defined for type and variable
 names, internally represented as strings. Similarly, we encode
-expressions using \texttt{Expr} trait and following case classes
+expressions using \texttt{Expr} trait and the following case classes
 extending it:
 
 \begin{minted}[mathescape]{scala}
@@ -370,7 +370,7 @@ case class Cast(className: TypeName,
                 expr: Expr) extends Expr
 \end{minted}
 
-In actual implementation all those classes have overriden
+In actual implementation all those classes have overridden
 method \texttt{toString} which prettifies syntax of our
 programs when printing to the console.
 
@@ -418,74 +418,79 @@ val main: Expr = Invoke(
 val program = Program(classTable, main)
 \end{minted}
 
-We have helper function \texttt{buildClassTable} which takes list
-of classes and returns class table built out of them.
+We have helper function \texttt{buildClassTable} which takes a list
+of classes and returns a class table built out of them.
 \texttt{Program} is just, following definition, paired class table
 with main expression to be evaluated.
 
 \subsubsection{Type checker}
 
-There are type-checking rules provided in \emph{FJ} paper, which
-are implemented in \texttt{fj.Types}.
+There are type-checking rules provided in the \emph{FJ} paper,
+which are implemented in \texttt{fj.Types}.
 
-Subtyping in \emph{FJ} is reflexive and transitive closure of
+Subtyping in \emph{FJ} is the reflexive and transitive closure of
 inheritance relation between classes. It can be decided only by
-looking at class table. Implementation of subtyping is given as
-recursive function at \texttt{fj.Types.isSubtype}.
+looking at the class table. Implementation of subtyping is provided
+as a recursive function \texttt{fj.Types.isSubtype}.
 
-Main type-checking function is \texttt{fj.Types.exprType} which
-find concrete type of expression in given typing context $\Gamma$
-or indicates that expression is incorrectly-typed. Context
-$\Gamma$ contains information about actual types of available
+Main type-checking function is \texttt{fj.Types.exprType} that
+finds concrete type of expression in given typing context $\Gamma$
+or indicates that the expression is incorrectly-typed. Context
+$\Gamma$ contains information about actual types of the available
 variables and is represented as \texttt{Map[VarName, SimpleType]}.
-There is also auxilliary function \texttt{fj.Types.progType} which
-type-checks a whole program, ensuring that all classes, fields,
+There is also an auxilliary function \texttt{fj.Types.progType}
+that type-checks a whole program, ensuring that all classes, fields,
 methods are well-typed according to the typing rules, and returns
-type of main expression.
+type of the main expression.
 
 \subsubsection{CBV Evaluator}
 
 In \cite{fj} there were reduction rules given for expressions in
 the form of so-called \emph{operational semantics}, which doesn't
-precise the order of evaluation. Trying to implement expression
-evaluator, some evaluation strategy have to be chosen. This
+precise the order of evaluation. Trying to implement the expression
+evaluator, some evaluation strategy has to be chosen. This
 implementation is realized with \emph{call by value} semantics,
-which corresponds to that from full Java, where method's arguments
-are evaluated from left to right.
+which corresponds to that known from the full Java, where
+the method's arguments are evaluated from left to right.
 
 From the \emph{FJ} calculus point of view when some reduction error
 occurs (like trying to create object of unknown class or trying to
-invoke non-existing method), such configuration is called \emph{stuck}
-and the evaluation cannot be continued. In this implementation we
-don't bother too much about error handling in the interpreter.
-When some error configuration is detected, we simply throw
-\texttt{RuntimeException} with appropriate error message, forgetting
-about result we computed so far.
+invoke non-existing method), such a configuration is called
+\emph{stuck} and the evaluation process cannot be continued.
+In this implementation we don't bother too much about error
+handling in the interpreter. When some errored configuration is
+detected, simply \texttt{RuntimeException} is thrown with
+an appropriate error message, forgetting about the result
+computed so far.
 
-The evaluator is rather simple adaptation of reduction rules to
+The evaluator is rather simple adaptation of the reduction rules to
 \emph{call by value} strategy. It can be found at
-\texttt{fj.Eval.evalExpr} for evaluation expressions in given
-context (i.e. class table) and auxilliary function
-\texttt{fj.Eval.evalProg} which takes program, builds class table
-and evaluates its main expression.
+\texttt{fj.Eval.evalExpr} for evaluation expressions in the given
+context (i.e. the class table) and auxiliary function
+\texttt{fj.Eval.evalProg} which takes the program, builds the
+class table and evaluates its main expression.
 
 \subsubsection{Running examples}
 
+Let's consider context of two previous code snippets. Below
+we present how the type-checker and program evaluator could be
+launched.
+
 \begin{minted}[mathescape]{scala}
 println(program.main) // prints: new Pair(new A(), new B()).setfst(new B())
-val programT = programType(program) // Some(Pair) - type of main expression
-val result = evalProg(program) // New("Pair", List(New("B"), New("B")))
+fj.Types.programType(program) // Some(Pair) - type of main expression
+val result = fj.Eval.evalProg(program) // New("Pair", List(New("B"), New("B")))
 println(result) // prints: new Pair(new B(), new B())
 \end{minted}
-Similar example can be run from console by typing:
+Similar example can be run from console by typing
 
 \begin{verbatim}
 sbt "runMain fj.examples.Pairs"
 \end{verbatim}
 
-Let's encode some more interesing program in our language. In
-\emph{FJ} we don't have primitive types, especially numbers.
-But there is a way to encode natural numbers using just classes
+Let's encode some more interesting program in our language. In
+the \emph{FJ} we don't have primitive types, especially numbers.
+But there is a way to encode the natural numbers using just classes
 and objects, similarly to \emph{Church numerals} in
 the $\lambda$-calculus, but instead of folding functions, we
 will fold objects of class \texttt{Succ} $n$ times over the
@@ -509,31 +514,31 @@ class Succ extends Nat {
 }
 \end{minted}
 
-We represent 0 as \texttt{new Zero()},
+Following the definition, we represent 0 as \texttt{new Zero()},
 1 as \texttt{new Succ(new Zero())},
 2 as \texttt{new Succ(new Succ(new Zero()))}, and so on.
-
-Addition is implemented as recursive function with base case
+Addition is implemented as a recursive function with base case
 at 0 (indeed, $0 + n = n$). Recursive step is in the class
 \texttt{Succ} -- it transforms general addition $m + n$ into
 $(m-1) + (n+1)$ until base case for $m = 0$ is reached.
-Method \texttt{succ} is implemented in class \texttt{Nat} as
-wrapping the actual number \texttt{this} into object of
-\texttt{Succ} class.
+Method \texttt{succ} is implemented in the base class
+\texttt{Nat} as wrapping the actual number \texttt{this}
+into object of \texttt{Succ} class.
 
 There is one subtelty connected with implementation of method
 \texttt{plus}. Base case of recursion has to be implemented in
-class \texttt{Nat} to satisfy type-checking of \texttt{Succ}
-class. In full Java we would probably defined this method as
-abstract in \texttt{Nat} class and provide two actual
-implementations in \texttt{Zero} and \texttt{Succ}. But in
-\emph{FJ} we don't have abstract methods and without method
-\texttt{plus} declared in \texttt{Nat}, type checking of
-recursive invocation \texttt{this.prev.plus(...)} in
-\texttt{Succ} class would fail.
+the class \texttt{Nat} to satisfy type-checking of the
+\texttt{Succ} class. In the full Java we would probably
+defined this method as an abstract in the \texttt{Nat} class
+and provide two actual implementations in \texttt{Zero} and 
+\texttt{Succ}. But in the \emph{FJ} we don't have abstract
+methods and without method \texttt{plus} declared in
+the \texttt{Nat} class, type checking of recursive invocation 
+\texttt{this.prev.plus(...)} in the \texttt{Succ} class
+would fail.
 
-You can find this example encoded at \texttt{fj.examples.Numbers}
-and run it by typing:
+This example can be found at \texttt{fj.examples.Numbers}
+and launched by typing:
 
 \begin{verbatim}
 sbt "runMain fj.examples.Numbers"
@@ -544,11 +549,19 @@ sbt "runMain fj.examples.Numbers"
 
 \emph{FGJ}-related code is contained in \texttt{src/main/scala/fgj}
 directory. There are syntax for \emph{FGJ} programs defined in
-\texttt{AST.scala} and type checker in \texttt{Types.scala}.
+\texttt{AST.scala} and extended type checker in \texttt{Types.scala}. 
+Unlike to the \emph{FJ} module, there is no program
+evaluator\footnote{Such a direct evaluator would have to use type
+passing implementation of generics. Actually, extending the \emph{FJ}
+evaluator to maintain additional environment for the type variables
+and their actual denotations is rather straightforward and might
+be considered as an exercise for the reader. The operational
+semantics for \emph{FGJ} is defined in \cite{fj}.} available
+in this implementation.
 
 \subsubsection{Types}
 
-As types are now part of our classes, methods and expressions
+As the types are now part of our classes, methods and expressions
 AST, let's review them first.
 
 \begin{minted}[mathescape]{scala}
@@ -562,8 +575,8 @@ case class ClassType(className: TypeName,
                      argTypes: List[Type]) extends Type
 \end{minted}
 
-We have new type alias \texttt{TypeVarName} for type variables
-(again, internally just strings). We have 2 form of types now:
+We have new type alias \texttt{TypeVarName} for the type variables
+(again, internally just strings). The types have two possible forms:
 \emph{type variables} and \emph{class types} parameterized by
 some number of types (which again can be type variables or
 class types).
@@ -592,31 +605,34 @@ case class Argument(name: VarName, argType: Type)
 \end{minted}
 
 \texttt{BoundedParam} corresponds to single
-\texttt{Z extends Object} from our example. It is definition
+\texttt{Z extends Object} from the example \texttt{Pair} class.
+It is definition
 of type variable, bounded by some class type. Notice that we
 can write recursive type expression in bounds
-(like \texttt{X extends C<X>}) thanks to that definition of class
-types, which are parameterized with arbitrary types.
-
+(like \texttt{X extends C<X>}) thanks to definition of the class
+types, which can be parameterized with arbitrary types.
 Classes are parameterized by a list of \emph{bounded parameters}.
-Notice change in \texttt{baseClass} signature which now is not
-only name reference, but is class type which can be parameterized
-with type variables, like in example below.
+Notice change in the \texttt{baseClass} signature which is not
+only a~name reference any more, but became the class type
+parameterizable by the type variables, like in the example below --
+where super-class type \texttt{Collection} is parameterized with
+a type variable \texttt{X}.
 
 \begin{minted}[mathescape]{scala}
 class List<X extends Object> extends Collection<X> { ... }
 \end{minted}
 
-Methods also can be parameterized with type variables. We can use
-them to encode method's return type and argument types.
+Methods also can be parameterized with type variables as well.
+We can use them to encode method's return type and argument
+types.
 
 \texttt{ClassTable} and \texttt{Program} definitions are
-straightforwardly adjusted to use refined types.
+straightforwardly adjusted to use the refined types.
 
 \subsubsection{Expressions}
 
-AST for expressions is mostly unchanged. As before, we have 5
-forms of them.
+AST for the expressions is mostly untouched. Just like in
+the \emph{FJ}, we have 5 different forms of them.
 
 \begin{minted}[mathescape]{scala}
 trait Expr
@@ -638,86 +654,79 @@ case class Cast(classType: ClassType,
                 expr: Expr) extends Expr
 \end{minted}
 
-The only difference beside type adjustments is in \texttt{Invoke}
-expression which now takes also list of type parameters to be
-instantiated.
+Occurences of the \texttt{TypeName} in the classes \texttt{New}
+and \texttt{Cast} were replaced by a \texttt{ClassType}. It is possible
+to create an object \texttt{new Pair<X,Y>(...)}, but it's illegal
+to construct such an expression \texttt{new X()}, in the context
+where \texttt{X} and \texttt{Y} are the type variables. Similar
+restriction concerns the casting target type too. In the class \texttt{Invoke} there is additional parameter \texttt{typeArgs}
+which encodes actual type arguments of the method invocation.
 
 \subsubsection{Type checker}
 
-In \emph{FGJ} typechecking rules are bit more complicated. First
-of all, subtyping is not relation between class names any more,
-but is generalized for all type forms, including type variables.
-Therefore we differentiate two separate relations:
+In the \emph{FGJ} type-checking rules are a bit more complicated.
+First of all, subtyping is not a relation between class names any
+more, but is generalized for all type forms, including the type
+variables. Therefore we differentiate two separate relations:
 
 \begin{itemize}
-\item{\textbf{subclassing}} -- it corresponds to \emph{FJ}'s
+\item{\textbf{subclassing}} -- it corresponds to the \emph{FJ}'s
   subtyping, can be decided only using class table
 \item{\textbf{subtyping}} -- generalized relation between all
-  types, can be decided using additional environment $\Delta$
-  which maps type variables to their bounds, where bounds are
+  the types that can be decided using additional environment $\Delta$
+  that maps type variables to their bounds, where bounds are
   just class types with actual type arguments given.
 \end{itemize}
 
 \paragraph{Covariant method overriding}
 
-Unlike to \emph{FJ}, where we allowed method overriding only with
-corresponding (i.e. identical) signatures, in \emph{FGJ} covariant
-method overriding on the method's result type is allowed. Result
+Unlike in the \emph{FJ}, where we allowed method overriding only with
+corresponding (i.e. identical) signatures, covariant method overriding
+on the method's result type is allowed in the \emph{FGJ}. The result
 type of a method may be a subtype of the result type of the
 corresponding method in the superclass, although the bounds of
-type variables and the argument types must be identical (modulo
-renaming of type variables).
+the type variables and the argument types must be identical (modulo
+renaming the type variables).
 
 Function for typing expressions is located at
-\texttt{fgj.Types.exprType}, now it takes expression, class table
-and two contexts $\Gamma$ and $\Delta$. Again, we have auxilliary
-\texttt{fgj.Types.programType} which checks also well-typedness of
-classes and methods.
-
-\subsubsection{Excercise: type-passing evaluator}
-
-We will not provide \emph{call by value} evaluator for type-passing
-semantics, leaving it as an excercise for the reader to take
-\emph{FJ} evaluator code and adjust it to support evaluating
-programs in syntax with generic types.
-
-\paragraph{Hint} As well as we maintain environment for variables
-and its values, you may need to maintain additional environment
-mapping type variables to actual class types.
+\texttt{fgj.Types.exprType}, which takes the expression, the class
+table and two contexts $\Gamma$ and $\Delta$. Again, we have
+auxilliary \texttt{fgj.Types.programType} which checks also
+well-typedness of the classes and methods.
 
 
 \subsection{Type erasure}
 
-Erasure-related code is contained in \texttt{src/main/scala/erasure}
-directory.
+Implementation of the type erasure rules is located at
+\texttt{src/main/scala/erasure} directory.
 
 \subsubsection{Overview}
 
-The general idea of type erasure is to translate \emph{FGJ}
+The general idea of the type erasure is to translate \emph{FGJ}
 programs into \emph{FJ} ones. To perform that task, we have to
-define erasure for all parts of our programs. Wanting to adopt
-erasure rules from \cite{fj}, several functions are defined, to
-translate:
+implement erasure for all the parts of our programs. Wanting to adopt
+the erasure rules from \cite{fj}, several functions are defined,
+namely to translate:
 
 \begin{itemize}
 \item FGJ types to FJ types -- \texttt{erasure.Erasure.eraseType}
-\item FGJ expressions to FJ expression --
+\item FGJ expressions to FJ expressions --
   \texttt{erasure.Erasure.eraseExpr}
 \item FGJ classes to FJ classes -- \texttt{erasure.Erasure.eraseClass}
-\item and finally we have auxilliary function which merge results
-  and translate a whole FGJ program to FJ program --
-  \texttt{erasure.Erasure.eraseProgram}
 \end{itemize}
+And finally, auxiliary function that merges results and translates a
+whole \emph{FGJ} program to an \emph{FJ} program is
+\texttt{erasure.Erasure.eraseProgram}.
 
 \subsubsection{Examples}
 
-Instead of exploring implementation details, let's catch some more
+Instead of exploring the implementation details, let's catch some more
 interesting \emph{FGJ} programs and their erased versions to see
 the rules in action.
 
 \paragraph{Example 1} natural numbers revisited
 
-This is extended version of natural numbers implementation in
+This is an extended version of natural numbers implementation in
 \emph{FGJ}.
 
 \begin{minted}[mathescape]{java}
@@ -743,24 +752,24 @@ class Succ extends Nat {
 }
 \end{minted}
 
-We introduced class \texttt{Summable<X>} which have one method
+We introduced a class \texttt{Summable<X>} which have one method
 \texttt{plus}. In Java we would probably make this class an
-interface, but in \emph{FGJ} we don't have interfaces, so we have
-to provide default implementation returning some value of type
-\texttt{X}. Fortunately we have parameter of type \texttt{X},
-so we use it as a return value. It turns out that it is still
-valid implementation of \texttt{plus} for class \texttt{Zero},
-so we don't have to re-implement it there. We made our
-\texttt{Nat} class a subclass of \texttt{Summable<Nat>}. For
-class \texttt{Succ} implementation of \texttt{plus} is the same
-as before. Spot another slight difference in return type
-of \texttt{succ} method in class \texttt{Nat} -- now it is
+interface, but in the \emph{FGJ} we don't have interfaces, so we have
+to provide the default implementation returning some value of type
+\texttt{X}. Fortunately, we have a parameter of type \texttt{X}
+available, so we use it as a return value. It turns out that it
+is still a valid implementation of \texttt{plus} for class
+\texttt{Zero}, so we don't have to re-implement it there. We made
+the \texttt{Nat} class a subclass of the \texttt{Summable<Nat>}.
+For class \texttt{Succ} implementation of \texttt{plus} is the same
+as before. Spot another slight difference in the return type
+of a \texttt{succ} method in class \texttt{Nat} -- it is
 declared to be \texttt{Succ}; we will need that to demonstrate
-erasure of covariant method overriding in result type in one of
-the following examples.
+an erasure of covariant method overriding in the result type in
+one of the following examples.
 
-Let's use function \texttt{erasure.Erasure.eraseClass} to generate
-erasure for these classes.
+Let's use a function \texttt{erasure.Erasure.eraseClass} to generate
+the erasure for these classes.
 
 \begin{minted}[mathescape]{java}
 class Summable extends Object {
@@ -785,42 +794,43 @@ class Succ extends Nat {
   }
 }
 \end{minted}
-What did the erasure change here?
+What has the erasure changed here?
 
 \begin{itemize}
-\item in class \texttt{Summable} type parameters list was removed
-   and all type variables were replaced with \texttt{Object} --
-   which was declared bound for \texttt{X} variable (see
-   \texttt{X extends Object} in original class)
-\item class \texttt{Nat} now extends our erased \texttt{Summable}
+\item in the class \texttt{Summable} type parameters list was removed
+   and all the type variables were replaced with an~\texttt{Object} --
+   declared type bound for the \texttt{X} variable (see
+   \texttt{X extends Object} in the original class)
+\item the class \texttt{Nat} now extends an erased \texttt{Summable}
   class
-\item according to \texttt{plus} method signature change in
-  \texttt{Summable}, signature of \texttt{plus} in \texttt{Succ}
+\item according to the \texttt{plus} method's signature change in
+  \texttt{Summable}, the signature of \texttt{plus} in the \texttt{Succ}
   class was adjusted to be identical (modulo argument names);
-  to recover information about types, two casts to \texttt{Nat}
-  were inserted: first over the access to \texttt{n\_} variable,
-  second over the invocation of method \texttt{plus} which
-  happened to return natural number in generic version.
+  two casts to the \texttt{Nat} type were inserted to recover
+  the original information about types: first over the access to 
+  an \texttt{n\_} variable,
+  second over the invocation of~a~method \texttt{plus} that
+  happened to return a natural number in the generic version.
 \end{itemize}
-Now, let's construct simple expression using these classes. This
+Now, let's construct a simple expression using these classes. This
 will correspond to arithmetic operation $2 + 1$.
 
 \begin{minted}[mathescape]{java}
 new Succ(new Succ(new Zero())).plus(new Succ(new Zero()))
 \end{minted}
-After erasure it looks almost the same.
+After the erasure it looks almost the same.
 \begin{minted}[mathescape]{java}
 (Nat)(new Succ(new Succ(new Zero())).plus(new Succ(new Zero())))
 \end{minted}
 
-Now, our \texttt{plus} method returns an \texttt{Object}, but
-type erasure was smart enough to insert upcast around invocation
-of this method, to recover correct type from original program.
+The \texttt{plus} method returns an \texttt{Object}, but
+type erasure was smart enough to insert upcast around the invocation
+of this method, to recover correct type from the original program.
 
 \paragraph{Example 2} summable lists
 
-Let's review another example - lists which can contain some
-summable elements and are able to compute total \texttt{sum} of
+Let's review another example -- lists that can contain some
+summable elements and compute total \texttt{sum} of
 all their elements.
 
 \begin{minted}[mathescape]{java}
@@ -846,36 +856,29 @@ class Cons<X extends Summable<X>> extends List<X> {
 \end{minted}
 We have base \texttt{List<X>} class and its two subclasses:
 \begin{itemize}
-\item \texttt{Nil} -- corresponding to empty list
+\item \texttt{Nil} -- corresponding to an empty list
 \item \texttt{Cons} -- list constructor which holds single
-  element \texttt{head} of type \texttt{X} and rest of list
+  element \texttt{head} of type \texttt{X} and rest of the list
    -- \texttt{tail} of type \texttt{List<X>}
 \end{itemize}
-For example list \texttt{[1, 0]} can be encoded as following
-expression:
+For instance, list \texttt{[1, 0]} can be encoded as
+the following expression:
 
 \begin{minted}[mathescape]{java}
 new Cons<Nat>(new Succ(new Zero()), new Cons<Nat>(new Zero(), new Nil<Nat>()))
 \end{minted}
 
-Method \texttt{sum} takes parameter \texttt{zero} which will
-be summed with all elements of our list. Overriden occurrence
+A method \texttt{sum} takes the parameter \texttt{zero} which is
+summed into all elements of our list. Overridden occurrence
 uses recursive call first to compute sum of \texttt{tail} (it will
-return \texttt{X}) and invoke method \texttt{plus} adding
-\texttt{head} element to the sum. Notice that in this example
-class there is no any occurrence of classes \texttt{Nat},
+return \texttt{X}) and then invokes method \texttt{plus} adding
+\texttt{head} element to the final result. Notice that in this
+class definition there is no single occurrence of classes \texttt{Nat},
 \texttt{Zero} or \texttt{Succ} -- we were able to express
-\texttt{sum} operation on list using only abstract \texttt{plus}
-which we defined for summables.
+\texttt{sum} operation on list using only the abstract \texttt{plus}
+method that we defined for summables.
 
-You can consider to make a \texttt{List} class subtype of
-\texttt{Summable}.
-\begin{enumerate}
-\item What is the meaning of \texttt{plus} regarding to lists?
-\item How exactly would base class signature would look like?
-\end{enumerate}
-
-Let's review erasure of lists implementation.
+Let's review erasure of such a summable list implementation.
 
 \begin{minted}[mathescape]{java}
 class List extends Object {
@@ -899,16 +902,18 @@ class Cons extends List {
 }
 \end{minted}
 
-Again, all type parameters were removed and occurrences of all
-type variables were replaced with \texttt{Summable}. Erasure is
-optimized in that way that it doesn't insert casts, if they are
-not necessary -- see implementations of \texttt{sum} method
-and references to \texttt{zero} argument which are not casted.
-The only cast we need to insert is around invocation of \texttt{plus}
-method from \texttt{Summable}, which still returns \texttt{Object}.
+Again, all the type parameters were removed and all the occurrences
+of type variables were replaced with their bounds -- the 
+\texttt{Summable} type. The erasure procedure is
+optimized in that way that it doesn't insert the casts, if they are
+not absolutely necessary -- see implementations of \texttt{sum} method
+and references to \texttt{zero} argument which are not cast.
+The only cast we need to insert is placed around the invocation of 
+the \texttt{plus} method from \texttt{Summable}, which still returns
+an \texttt{Object}.
 
-Having the context of \texttt{Nat} and \texttt{List} classes,
-let's consider such expression:
+Having the context of the \texttt{Nat} and \texttt{List} classes,
+let's consider such an expression:
 
 \begin{minted}[mathescape]{java}
 new Cons<Nat>(
@@ -930,30 +935,29 @@ new Cons<Nat>(
 ).sum(new Zero())
 \end{minted}
 
-Recognize the trick? We constructed list of 2 natural numbers
-(3 and 2) by instantiating \texttt{Cons}es with type argument
+We constructed list of 2 natural numbers
+(3 and 2) by instantiating \texttt{Cons}es with the type argument
 \texttt{Nat}, which were removed during erasure. Method
-\texttt{sum} returns \texttt{Summable}, but cast to
-\texttt{Nat} were inserted to ensure that both expressions have
-the same types in corresponding type checkers (both types
+\texttt{sum} returns a \texttt{Summable}, but cast to the
+\texttt{Nat} class was inserted to ensure that both expressions have
+the same types in corresponding type checkers (they both types
 to \texttt{Nat}).
-
-We can now evaluate erased expression using \emph{FJ} evaluator:
+Let's evaluate erased expression using the \emph{FJ} evaluator:
 
 \begin{minted}[mathescape]{java}
 new Succ(new Succ(new Succ(new Succ(new Succ(new Zero())))))
 \end{minted}
 
-As a result, we got encoding of number 5 which is sum of list
-elements (3 and 2) with explicit 0 passed to \texttt{sum}.
+As a result, we got encoding of number the 5 which is sum of list
+elements (3 and 2) with explicit 0 passed to the \texttt{sum}
+invocation.
 
 \paragraph{Example 3} functions as objects
 
 So far we have seen rather simple examples. Now let's try to
 encode something more advanced.
-
-We want to encode interface for unary functions which takes
-single argument of type \texttt{X} and returns value
+We want to encode an interface for unary functions which takes
+a single argument of type \texttt{X} and returns a value
 of type \texttt{Y}.
 
 \begin{minted}[mathescape]{java}
@@ -966,15 +970,15 @@ class UnaryFunc<X extends Object, Y extends Object> extends Object {
 }
 \end{minted}
 
-We want to represent simple functions as instances of
+We want to represent simple functions as instances of the
 \texttt{UnaryFunc} class with single method \texttt{apply} for
-computing function value for given argument. Again, due to lack
+computing function value for the given argument. Again, due to lack
 of interfaces, we have to provide trivial implementation for
 \texttt{apply}. Since we don't require \texttt{Y} as an argument
-for method, the trick is to create member of the same type as
-function's result type and return it in our trivial implementation.
+for a method, the trick is to create a member of the same type as
+the function's result type and return it in our trivial implementation.
 
-Let's encode simple function for natural numbers, $f(n) = 2 * n + 1$.
+Let's encode a simple function for natural numbers, $f(n) = 2 * n + 1$.
 
 \begin{minted}[mathescape]{java}
 class TwicePlus1 extends UnaryFunc<Nat, Nat> {
@@ -985,19 +989,19 @@ class TwicePlus1 extends UnaryFunc<Nat, Nat> {
 }
 \end{minted}
 
-Class \texttt{TwicePlus1} represents that function by replacing
+The class \texttt{TwicePlus1} represents that function by replacing
 multiplication by 2 with addition of arguments and incrementation
-by calling \texttt{succ}. Notice that since for every natural argument,
-result of such a function will be positive number, we can encode it
-within type system by declaring result as \texttt{Succ} type, while
-still passing \texttt{Nat} as second type argument to
-\texttt{UnaryFunc}. This is demonstration of aforementioned
-\emph{covariant method overriding} in \emph{FGJ} -- we can declare
-result type of overriden method as a subtype of result of method
-declared in super class, even if this type was a type variable --
-we can now see that subtyping takes care of resolving type variables
-and actual type arguments passed. That is the reason why we need
-contexts $\Delta$.
+by calling a \texttt{succ}. Notice that since for every natural argument,
+result of such a function will be positive number -- we can encode that
+within the type system by declaring result as a \texttt{Succ} type,
+while still passing \texttt{Nat} as a second type argument to
+the \texttt{UnaryFunc}. This is demonstration of aforementioned
+\emph{covariant method overriding} in the \emph{FGJ} -- we can declare
+the result type of overridden method as a subtype of the result type
+of method declared in super class, even if this type was a
+type variable. It's the subtyping that takes care of resolving
+the type variables and the actual type arguments passed.
+That is the reason why we needed the contexts $\Delta$.
 
 Let's review erasure of classes \texttt{UnaryFunc} and
 \texttt{TwicePlus1}.
@@ -1019,23 +1023,23 @@ class TwicePlus1 extends UnaryFunc {
 }
 \end{minted}
 
-The same as before, generic types were removed from our classes
+The same as before, generic types were removed from the classes
 and replaced with their bounds -- \texttt{Object}s. Covariant
-method overriding is not present in \emph{FJ}, so erasure had
+method overriding is not present in the \emph{FJ}, so erasure had
 to ensure that types in methods signatures in both classes are
-identical. Proper casts were inserted in overriden method
+identical. Proper casts were inserted in overridden method
 \texttt{apply}:
 
 \begin{itemize}
-\item two casts around reference to the variable \texttt{n\_} --
-  to recapture its type, which was \texttt{Nat} in example with
+\item two casts around the reference to a variable \texttt{n\_} --
+  to recapture its type, being \texttt{Nat} in the example with
   generic types
 \item cast to \texttt{Nat} around invocation of method
-  \texttt{plus}, as well in previous examples.
+  \texttt{plus}, as well as in the previous examples.
 \end{itemize}
 \textbf{Combining it together}
 
-Let's extend our \texttt{List} class to support mapping its
+Let's extend the \texttt{List} class to support mapping its
 elements with unary functions.
 
 \begin{minted}[mathescape]{java}
@@ -1054,10 +1058,10 @@ class Cons<X extends Summable<X>> extends List<X> {
 }
 \end{minted}
 
-In base class we added method \texttt{map} parameterized with
-type parameter \texttt{Y} which takes unary function and simply
-constructs empty list of summables \texttt{Y}. In \texttt{Cons}
-we return new list with function \texttt{f} applied to the
+In the base class we added method \texttt{map}, parameterized with
+the type parameter \texttt{Y} that takes unary function and simply
+constructs an empty list of summables \texttt{Y}. In \texttt{Cons}
+we return a new list with function \texttt{f} applied to the
 \texttt{head} element and \texttt{tail} mapped by \texttt{f}.
 
 How the erasure of the added methods looks like?
@@ -1079,12 +1083,12 @@ class Cons extends List {
 }
 \end{minted}
 
-\texttt{UnaryFunc} in \texttt{map} argument occurs in erased
+\texttt{UnaryFunc} in the \texttt{map}'s argument occurs in erased
 version. Then cast to \texttt{Summable} was inserted around
-\texttt{apply} invocation.
+\texttt{apply} invocation in the \texttt{Cons} class.
 
-Finally, let's construct example program which uses all classes
-we defined so far.
+Finally, let's construct an example program which uses all the classes
+defined so far.
 
 \begin{minted}[mathescape]{java}
 new Cons<Nat>(
@@ -1099,9 +1103,7 @@ new Cons<Nat>(
 
 We construct list \texttt{[1,2]}, map it by function
 \texttt{TwicePlus1} and sum all elements of resulting list
-with~0.
-
-Erased version contains only topmost cast to \texttt{Nat}
+with~0. Erased version contains only topmost cast to \texttt{Nat}
 (remember, \texttt{sum} result type was \texttt{Summable},
 but we have concrete subclass here).
 
@@ -1118,7 +1120,7 @@ but we have concrete subclass here).
 )
 \end{minted}
 
-Erased program evaluates to encoding of number \texttt{8},
+Erased program evaluates to the encoding of a number \texttt{8},
 as we expected.
 
 \begin{minted}[mathescape]{java}
@@ -1128,58 +1130,58 @@ new Succ(new Succ(new Succ(new Succ(new Succ(new Succ(new Succ(new Zero())))))))
 
 \section{Erasure properties}
 
-We have seen type erasure in action on programming language,
+We have seen the type erasure in action on programming language,
 which although simplified to bare minimum, is able to encode,
-typecheck and evaluate quite advanced examples. We reviewed
+type-check and evaluate quite advanced examples. We reviewed
 erasure of all examples and saw types of some of them and
-they corresponded to types found by generic typechecker. Moreover,
+they corresponded to types found by generic type-checker. Moreover,
 erased programs behaved exactly as we expected when we were
-defining their generic version. Is it matter of convenient
-examples, or is it kind of general property?
+defining their generic version. Is it a matter of convenient
+examples, or is it a kind of general property?
+Authors of \cite{fj} come with an answer, stating several theorems.
 
-Authors of \cite{fj} come with an answer, stating several theorems,
-which most important are formulated below.
 \newtheorem{theorem}{Property}
 \begin{theorem}[Erasure preserves typing]
 For all well-typed \emph{FGJ} class tables, they are well-typed
 after erasing under \emph{FJ} typing rules.
 \end{theorem}
-This property ensures us that \emph{FGJ} is fully compatible
-superset of \emph{FJ} regarding to typechecking.
+This property ensures us that the \emph{FGJ} is fully compatible
+superset of \emph{FJ} regarding typechecking.
 
 \begin{theorem}[Erasure preserves execution results]
-If well-typed \emph{FGJ} program evaluates to some value $w$
+If a well-typed \emph{FGJ} program evaluates to some value $w$
 in type-passing semantics, then erased program evaluates to
-erasure of value $w$ in \emph{FJ} evaluator.
+the erasure of value $w$ in the \emph{FJ} evaluator.
 \end{theorem}
 
 Both theorems are proved in \cite{fj}. There are some technical
-difficulties in proving second theorem, connected with insertion
-of special synthetic casts during erasure. Finally, behaviour of
-the program after erasure is equivalent modulo evaluation of
-synthetic casts.
+difficulties in proving the second theorem, connected with an
+insertion of special synthetic casts during erasure. Finally,
+behaviour of the program after erasure is equivalent modulo
+evaluation of synthetic casts.
 
 \section{Conclusion}
 
 We have discussed one of possible implementation of generic
 types -- \emph{type erasure}. There are several known problems
-in languages or development platforms built on top of idea
-of erasing generic types, amongst which the most popular is
-\emph{Java Virtual Machine}. Deep understanding of pure idea and
-ability to review although simplified, yet working implementation
-will allow you to better understand consequences of the limitations
-and their real roots. 
+in programming languages and development platforms built on top
+of the idea of erasing generic types, amongst which the most
+popular is \emph{Java Virtual Machine}. Deep understanding of
+the pure idea and ability to review although simplified,
+yet working implementation will allow the reader to better
+understand consequences of the limitations and their real roots. 
 
 \begin{thebibliography}{1}
 
   \bibitem{fj} A. Igarashi, B. C. Pierce, P. Wadler
-  {\em Featherweight Java: A Minimal Core Calculus for Java and GJ}
-  2002.
+  {\em Featherweight Java: A Minimal Core Calculus for Java and GJ}.
+  ACM Transactions on Programming Languages and Systems (TOPLAS), 23(3), May 2001.
 
-  \bibitem{pjzo} P. Krzemiński {\em Slides from "Fundamentals of
-  Object Oriented Languages" seminary} 2014 \\
-  \url{http://www.ii.uni.wroc.pl/~dabi/courses/PJZO14/pkrzeminski/fj.pdf}
-
+  \bibitem{pjzo} P. Krzemiński Slides from {\em Fundamentals of
+  Object Oriented Languages} seminary lead by D. Biernacki.
+  Department of Computer Science, University of Wrocław, 2014.
+  Available at
+  \url{http://www.ii.uni.wroc.pl/~dabi/courses/PJZO14/pkrzeminski/fj.pdf}.
 
 \end{thebibliography}
 
