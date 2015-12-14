@@ -9,6 +9,8 @@
 \usepackage{minted}
 \usepackage{tcolorbox}
 \usepackage{etoolbox}
+\tcbset{noparskip/.style={before={\par\smallskip\pagebreak[0]\parindent=0pt},
+                          after={\par\smallskip\noindent}}}
 \BeforeBeginEnvironment{minted}
   {\begin{tcolorbox}[colback=white,arc=0mm,enlarge top by=1mm,enlarge bottom by=1mm,enlarge left by=8mm,width=\linewidth-16mm]}
 \AfterEndEnvironment{minted}
@@ -92,8 +94,6 @@ fields and methods only
 \item{\textbf{FGJ}} -- the language extended with
 type-parameterized classes and methods.
 \end{itemize}
-
-
 We will define syntax, look at the examples and express type
 erasure as translation from \emph{FGJ} to \emph{FJ} that
 preserves some important properties about types and behaviour.
@@ -182,9 +182,8 @@ class Pair extends Object {
   }
 }
 \end{minted}
-
 \emph{FJ} is a class-based language where we can define classes like in
-Java, but satisfying some constraints:
+the Java, but satisfying some constraints:
 
 \begin{itemize}
 \item we always write the super class name, even if it's trivial
@@ -192,9 +191,9 @@ Java, but satisfying some constraints:
 \item we always write the receiver of field or method, even if it's
   trivial (\texttt{this})
 \item \texttt{this} is simply a variable rather than a keyword, unlike
-  in full Java
+  the full Java
 \item we always write constructor which initializes all fields
-  defined in that class and call \texttt{super} which refers to the
+  defined in that class and calls \texttt{super} which refers to the
   super class constructor, which initializes its fields, etc.
 \item constructors are the only place where \texttt{super} or
   \texttt{=} appears
@@ -241,11 +240,11 @@ new Pair(new B(), new B())
 
 Let's extend the \emph{FJ} calculus with generic types. We parameterize
 class \texttt{Pair} with two type parameters \texttt{X} and \texttt{Y}.
-Using them, we encode types of fields \texttt{fst} and \texttt{snd},
+Using them, we encode the types of fields \texttt{fst} and \texttt{snd},
 accordingly. Notice that in definition of method \texttt{setfst} we
 introduce another type parameter \texttt{Z}, which allows to return
 an instance of a pair with not only value of type \texttt{X} modified,
-but allowing also to change first element's type!
+but allowing also to change the first element's type!
 
 \begin{minted}[mathescape]{java}
 class Pair<X extends Object, Y extends Object> extends Object {
@@ -259,6 +258,7 @@ class Pair<X extends Object, Y extends Object> extends Object {
   }
 }
 \end{minted}
+
 More generally, the syntax is extended with:
 
 \begin{itemize}
@@ -276,6 +276,7 @@ More generally, the syntax is extended with:
   \texttt{.setfst<B>(...)}, but empty parameter lists (\texttt{<>})
   can be omitted
 \end{itemize}
+
 Our refined example program looks as follows.
 
 \begin{minted}[mathescape]{java}
@@ -289,7 +290,7 @@ new Pair<B,B>(new B(), new B())
 \subsection{Type erasure as translation from FGJ to FJ}
 
 We can express type erasure as compilation from \emph{FGJ} syntax
-to \emph{FJ} by replacing all type variables with their bounds
+to the \emph{FJ} by replacing all type variables with their bounds
 and inserting some number of casts, when needed to smartly recover
 type information from the original \emph{FGJ} code. The example class
 \texttt{Pair<X, Y>} after erasure looks exactly like the previous
@@ -298,12 +299,12 @@ expression:
 \begin{minted}[mathescape]{java}
 new Pair<A,B>(new A(), new B()).snd
 \end{minted}
-erases to:
+erases to
 \begin{minted}[mathescape]{java}
 (B)new Pair(new A(), new B()).snd
 \end{minted}
 Notice that the cast to \texttt{B} was inserted to restore type
-of \texttt{snd} field which is annotated with type \texttt{Object}
+of \texttt{snd} field which is annotated with the type \texttt{Object}
 in the erased \texttt{Pair}.
 
 \section{Implementation review}
@@ -343,7 +344,6 @@ case class Method(name: VarName,
 case class Argument(name: VarName,
                     argType: TypeName)
 \end{minted}
-
 We represent \emph{FJ} classes using 4 nested data structures
 which hold all necessary information about base classes, fields
 and methods. There are type aliases defined for type and variable
@@ -369,7 +369,6 @@ case class New(className: TypeName,
 case class Cast(className: TypeName,
                 expr: Expr) extends Expr
 \end{minted}
-
 In actual implementation all those classes have overridden
 method \texttt{toString} which prettifies syntax of our
 programs when printing to the console.
@@ -401,7 +400,7 @@ val Pair = Class(
   )
 )
 \end{minted}
-It's just straightforward rewriting our \texttt{Pair} class
+It's just straightforward rewriting the \texttt{Pair} class
 with two fields and one method. We represent class tables and
 programs as follows.
 
@@ -417,7 +416,6 @@ val main: Expr = Invoke(
 )
 val program = Program(classTable, main)
 \end{minted}
-
 We have helper function \texttt{buildClassTable} which takes a list
 of classes and returns a class table built out of them.
 \texttt{Program} is just, following definition, paired class table
@@ -433,13 +431,13 @@ inheritance relation between classes. It can be decided only by
 looking at the class table. Implementation of subtyping is provided
 as a recursive function \texttt{fj.Types.isSubtype}.
 
-Main type-checking function is \texttt{fj.Types.exprType} that
+Main type-checking function is \texttt{fj.Types.exprType}. It
 finds concrete type of expression in given typing context $\Gamma$
 or indicates that the expression is incorrectly-typed. Context
 $\Gamma$ contains information about actual types of the available
 variables and is represented as \texttt{Map[VarName, SimpleType]}.
 There is also an auxiliary function \texttt{fj.Types.progType}
-that type-checks a whole program, ensuring that all classes, fields,
+that type-checks a whole program, ensuring that all the classes, fields,
 methods are well-typed according to the typing rules, and returns
 type of the main expression.
 
@@ -478,7 +476,7 @@ launched.
 
 \begin{minted}[mathescape]{scala}
 println(program.main) // prints: new Pair(new A(), new B()).setfst(new B())
-fj.Types.programType(program) // Some(Pair) - type of main expression
+fj.Types.programType(program) // Some(Pair) - type of the main expression
 val result = fj.Eval.evalProg(program) // New("Pair", List(New("B"), New("B")))
 println(result) // prints: new Pair(new B(), new B())
 \end{minted}
@@ -513,7 +511,6 @@ class Succ extends Nat {
   Nat plus(Nat n) { return this.prev.plus(n.succ()); }
 }
 \end{minted}
-
 Following the definition, we represent 0 as \texttt{new Zero()},
 1 as \texttt{new Succ(new Zero())},
 2 as \texttt{new Succ(new Succ(new Zero()))}, and so on.
@@ -548,9 +545,9 @@ sbt "runMain fj.examples.Numbers"
 \subsection{FGJ module}
 
 \emph{FGJ}-related code is contained in \texttt{src/main/scala/fgj}
-directory. There are syntax for \emph{FGJ} programs defined in
+directory. There is syntax for \emph{FGJ} programs defined in
 \texttt{AST.scala} and extended type checker in \texttt{Types.scala}. 
-Unlike to the \emph{FJ} module, there is no program
+Unlike the \emph{FJ} module, there is no program
 evaluator\footnote{Such a direct evaluator would have to use type
 passing implementation of generics. Actually, extending the \emph{FJ}
 evaluator to maintain additional environment for the type variables
@@ -574,7 +571,6 @@ case class TypeVar(name: TypeVarName) extends Type
 case class ClassType(className: TypeName,
                      argTypes: List[Type]) extends Type
 \end{minted}
-
 We have new type alias \texttt{TypeVarName} for the type variables
 (again, internally just strings). The types have two possible forms:
 \emph{type variables} and \emph{class types} parameterized by
@@ -603,7 +599,6 @@ case class Method(name: VarName,
                   
 case class Argument(name: VarName, argType: Type)
 \end{minted}
-
 \texttt{BoundedParam} corresponds to single
 \texttt{Z extends Object} from the example \texttt{Pair} class.
 It is definition
@@ -654,7 +649,7 @@ case class Cast(classType: ClassType,
                 expr: Expr) extends Expr
 \end{minted}
 
-Occurrences of the \texttt{TypeName} in the classes \texttt{New}
+All the occurrences of the \texttt{TypeName} in the classes \texttt{New}
 and \texttt{Cast} were replaced by a \texttt{ClassType}. It is possible
 to create an object \texttt{new Pair<X,Y>(...)}, but it's illegal
 to construct such an expression \texttt{new X()}, in the context
@@ -680,7 +675,7 @@ variables. Therefore we differentiate two separate relations:
 
 \paragraph{Covariant method overriding}
 
-Unlike in the \emph{FJ}, where we allowed method overriding only with
+Unlike the \emph{FJ}, where we allowed method overriding only with
 corresponding (i.e. identical) signatures, covariant method overriding
 on the method's result type is allowed in the \emph{FGJ}. The result
 type of a method may be a subtype of the result type of the
@@ -688,7 +683,7 @@ corresponding method in the superclass, although the bounds of
 the type variables and the argument types must be identical (modulo
 renaming the type variables).
 
-Function for typing expressions is located at
+Function for typing the expressions is located at
 \texttt{fgj.Types.exprType}, which takes the expression, the class
 table and two contexts $\Gamma$ and $\Delta$. Again, we have
 auxilliary \texttt{fgj.Types.programType} which checks also
@@ -751,7 +746,6 @@ class Succ extends Nat {
   }
 }
 \end{minted}
-
 We introduced a class \texttt{Summable<X>} which have one method
 \texttt{plus}. In Java we would probably make this class an
 interface, but in the \emph{FGJ} we don't have interfaces, so we have
@@ -812,9 +806,9 @@ What has the erasure changed here?
   second over the invocation of~a~method \texttt{plus} that
   happened to return a natural number in the generic version.
 \end{itemize}
+
 Now, let's construct a simple expression using these classes. This
 will correspond to arithmetic operation $2 + 1$.
-
 \begin{minted}[mathescape]{java}
 new Succ(new Succ(new Zero())).plus(new Succ(new Zero()))
 \end{minted}
@@ -822,7 +816,6 @@ After the erasure it looks almost the same.
 \begin{minted}[mathescape]{java}
 (Nat)(new Succ(new Succ(new Zero())).plus(new Succ(new Zero())))
 \end{minted}
-
 The \texttt{plus} method returns an \texttt{Object}, but
 type erasure was smart enough to insert upcast around the invocation
 of this method, to recover correct type from the original program.
@@ -867,7 +860,6 @@ the following expression:
 \begin{minted}[mathescape]{java}
 new Cons<Nat>(new Succ(new Zero()), new Cons<Nat>(new Zero(), new Nil<Nat>()))
 \end{minted}
-
 A method \texttt{sum} takes the parameter \texttt{zero} which is
 summed into all elements of our list. Overridden occurrence
 uses recursive call first to compute sum of \texttt{tail} (it will
@@ -901,7 +893,6 @@ class Cons extends List {
   }
 }
 \end{minted}
-
 Again, all the type parameters were removed and all the occurrences
 of type variables were replaced with their bounds -- the 
 \texttt{Summable} type. The erasure procedure is
@@ -934,7 +925,6 @@ new Cons<Nat>(
   )
 ).sum(new Zero())
 \end{minted}
-
 We constructed list of 2 natural numbers
 (3 and 2) by instantiating \texttt{Cons}es with the type argument
 \texttt{Nat}, which were removed during erasure. Method
@@ -942,12 +932,12 @@ We constructed list of 2 natural numbers
 \texttt{Nat} class was inserted to ensure that both expressions have
 the same types in corresponding type checkers (they both types
 to \texttt{Nat}).
+
 Let's evaluate erased expression using the \emph{FJ} evaluator:
 
 \begin{minted}[mathescape]{java}
 new Succ(new Succ(new Succ(new Succ(new Succ(new Zero())))))
 \end{minted}
-
 As a result, we got encoding of number the 5 which is sum of list
 elements (3 and 2) with explicit 0 passed to the \texttt{sum}
 invocation.
@@ -969,7 +959,6 @@ class UnaryFunc<X extends Object, Y extends Object> extends Object {
   }
 }
 \end{minted}
-
 We want to represent simple functions as instances of the
 \texttt{UnaryFunc} class with single method \texttt{apply} for
 computing function value for the given argument. Again, due to lack
@@ -988,7 +977,6 @@ class TwicePlus1 extends UnaryFunc<Nat, Nat> {
   }
 }
 \end{minted}
-
 The class \texttt{TwicePlus1} represents that function by replacing
 multiplication by 2 with addition of arguments and incrementation
 by calling a \texttt{succ}. Notice that since for every natural argument,
@@ -1022,7 +1010,6 @@ class TwicePlus1 extends UnaryFunc {
   }
 }
 \end{minted}
-
 The same as before, generic types were removed from the classes
 and replaced with their bounds -- \texttt{Object}s. Covariant
 method overriding is not present in the \emph{FJ}, so erasure had
@@ -1037,8 +1024,8 @@ identical. Proper casts were inserted in overridden method
 \item cast to \texttt{Nat} around invocation of method
   \texttt{plus}, as well as in the previous examples.
 \end{itemize}
-\textbf{Combining it together}
 
+\paragraph{Combining it together}
 Let's extend the \texttt{List} class to support mapping its
 elements with unary functions.
 
@@ -1057,7 +1044,6 @@ class Cons<X extends Summable<X>> extends List<X> {
   }
 }
 \end{minted}
-
 In the base class we added method \texttt{map}, parameterized with
 the type parameter \texttt{Y} that takes unary function and simply
 constructs an empty list of summables \texttt{Y}. In \texttt{Cons}
@@ -1082,7 +1068,6 @@ class Cons extends List {
   }
 }
 \end{minted}
-
 \texttt{UnaryFunc} in the \texttt{map}'s argument occurs in erased
 version. Then cast to \texttt{Summable} was inserted around
 \texttt{apply} invocation in the \texttt{Cons} class.
@@ -1100,7 +1085,6 @@ new Cons<Nat>(
 ).map<Nat>(new TwicePlus1(new Zero()))
  .sum(new Zero())
 \end{minted}
-
 We construct list \texttt{[1,2]}, map it by function
 \texttt{TwicePlus1} and sum all elements of resulting list
 with~0. Erased version contains only topmost cast to \texttt{Nat}
@@ -1119,7 +1103,6 @@ but we have concrete subclass here).
    .sum(new Zero())
 )
 \end{minted}
-
 Erased program evaluates to the encoding of a number \texttt{8},
 as we expected.
 
